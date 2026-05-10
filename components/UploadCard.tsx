@@ -2,7 +2,40 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FileUp, Loader2, ArrowRight } from "lucide-react";
+import {
+  Upload,
+  Loader2,
+  ArrowRight,
+  Box,
+  Activity,
+  Sigma,
+  BarChart3,
+} from "lucide-react";
+
+const SAMPLE_EMOJI: Record<string, string> = {
+  anatomy: "🫀",
+  physics: "⚙️",
+  costituzione: "⚖️",
+  calculus: "📐",
+  chemistry: "🧪",
+};
+
+type FeatureColor = "rose" | "amber" | "violet" | "sky";
+type FeatureIcon = React.ComponentType<{
+  className?: string;
+  style?: React.CSSProperties;
+}>;
+const FEATURES: Array<{
+  color: FeatureColor;
+  icon: FeatureIcon;
+  title: string;
+  desc: string;
+}> = [
+  { color: "rose",   icon: Box,       title: "3D models",   desc: "Rotate molecules, organs, geometries" },
+  { color: "amber",  icon: Activity,  title: "Simulations", desc: "Watch concepts come alive" },
+  { color: "violet", icon: Sigma,     title: "Formulas",    desc: "Math rendered, not just typed" },
+  { color: "sky",    icon: BarChart3, title: "Graphs",      desc: "Data made visual" },
+];
 
 type Sample = {
   id: string;
@@ -80,7 +113,7 @@ export default function UploadCard() {
         renders it inline — 3D, simulations, formulas, graphs.
       </p>
 
-      {/* Drop zone */}
+      {/* Drop zone — output-type badges + CTA button */}
       <div
         onDragEnter={(e) => {
           e.preventDefault();
@@ -94,15 +127,15 @@ export default function UploadCard() {
           const f = e.dataTransfer.files?.[0];
           if (f) startUpload(f);
         }}
-        className={[
-          "mt-9 cursor-pointer rounded-2xl border bg-white px-8 py-10 text-center transition-colors",
-          dragOver
-            ? "border-[var(--accent-500)] bg-[var(--accent-50)]"
-            : "border-dashed border-[var(--border-default)] hover:border-[var(--border-strong)]",
-        ].join(" ")}
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
+        className={[
+          "mt-9 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 py-9 text-center transition-colors",
+          dragOver
+            ? "border-[var(--accent-500)] bg-[var(--accent-50)]"
+            : "border-[var(--accent-100)] bg-[var(--accent-50)]/40 hover:border-[var(--accent-500)] hover:bg-[var(--accent-50)]",
+        ].join(" ")}
       >
         <input
           ref={inputRef}
@@ -114,18 +147,43 @@ export default function UploadCard() {
             if (f) startUpload(f);
           }}
         />
-        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-50)] ring-1 ring-[var(--accent-100)]">
-          {busy === "upload" ? (
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--accent-600)]" />
-          ) : (
-            <Upload className="h-5 w-5 text-[var(--accent-600)]" />
-          )}
+        {/* Output-type badges — what we'll generate from the PDF */}
+        <div className="mb-4 flex items-center justify-center gap-2">
+          {FEATURES.map(({ color, icon: Icon, title }) => (
+            <span
+              key={color}
+              title={title}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border"
+              style={{
+                background: `var(--tag-${color}-bg)`,
+                color: `var(--tag-${color}-fg)`,
+                borderColor: `var(--tag-${color}-ring)`,
+              }}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+          ))}
         </div>
-        <p className="text-[14px] font-medium text-[var(--ink-900)]">
-          {busy === "upload" ? "Uploading and parsing…" : "Drop a PDF here, or click to browse"}
+        <p className="flex flex-wrap items-center justify-center gap-2 text-[14px] text-[var(--ink-700)]">
+          {busy === "upload" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-600)]" />
+              <span className="font-medium text-[var(--ink-900)]">
+                Uploading and parsing…
+              </span>
+            </>
+          ) : (
+            <>
+              <span>Drop your PDF here, or</span>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-600)] px-3 py-1 text-[12.5px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-700)]">
+                <Upload className="h-3.5 w-3.5" />
+                Select the file
+              </span>
+            </>
+          )}
         </p>
-        <p className="mt-1 text-[12px] text-[var(--ink-400)]">
-          Best with text-tagged PDFs. We don&apos;t OCR images.
+        <p className="mt-3 text-[11.5px] text-[var(--ink-400)]">
+          Text-tagged PDFs work best. No OCR.
         </p>
       </div>
 
@@ -142,8 +200,8 @@ export default function UploadCard() {
               disabled={busy != null}
               className="group flex items-start gap-4 rounded-xl border border-[var(--border-subtle)] bg-white p-4 text-left transition hover:border-[var(--border-strong)] disabled:opacity-50"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)]">
-                <FileUp className="h-4 w-4 text-[var(--ink-700)]" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[18px] leading-none">
+                <span aria-hidden>{SAMPLE_EMOJI[s.id] ?? "📄"}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-semibold text-[var(--ink-900)]">{s.title}</p>

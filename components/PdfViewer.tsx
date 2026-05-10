@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Box, Activity, FileText, Sigma, BarChart3, Loader2, Plus, Minus } from "lucide-react";
+import {
+  Box,
+  Activity,
+  FileText,
+  Sigma,
+  BarChart3,
+  Loader2,
+  Plus,
+  Minus,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type { VizType } from "@/lib/schemas";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
@@ -122,6 +133,48 @@ export default function PdfViewer({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activeTagId, tags]);
 
+  // Track which page contains the viewport center so the page indicator
+  // stays in sync with manual scrolling.
+  const [currentPage, setCurrentPage] = useState(0);
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !numPages) return;
+    const onScroll = () => {
+      const pages = root.querySelectorAll<HTMLElement>("[data-page]");
+      if (!pages.length) return;
+      const center = root.scrollTop + root.clientHeight / 2;
+      for (const p of pages) {
+        if (center >= p.offsetTop && center < p.offsetTop + p.offsetHeight) {
+          setCurrentPage(Number(p.dataset.page));
+          return;
+        }
+      }
+    };
+    onScroll();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [numPages, scale]);
+
+  const [pageEditing, setPageEditing] = useState(false);
+  const [pageDraft, setPageDraft] = useState("");
+  const pageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const startPageEdit = useCallback(() => {
+    setPageDraft(String(currentPage + 1));
+    setPageEditing(true);
+  }, [currentPage]);
+
+  const goToPage = useCallback(
+    (idx: number) => {
+      const clamped = Math.max(0, Math.min(numPages - 1, idx));
+      const root = scrollRef.current;
+      if (!root) return;
+      const el = root.querySelector(`[data-page="${clamped}"]`) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [numPages],
+  );
+
   const zoomPercent = Math.round(zoomLevel * 100);
   const [zoomEditing, setZoomEditing] = useState(false);
   const [zoomDraft, setZoomDraft] = useState("");
@@ -141,12 +194,25 @@ export default function PdfViewer({
     setZoomEditing(false);
   }, [zoomDraft]);
 
+  const commitPageEdit = useCallback(() => {
+    const parsed = parseInt(pageDraft, 10);
+    if (Number.isFinite(parsed)) goToPage(parsed - 1);
+    setPageEditing(false);
+  }, [pageDraft, goToPage]);
+
   useEffect(() => {
     if (zoomEditing) {
       zoomInputRef.current?.focus();
       zoomInputRef.current?.select();
     }
   }, [zoomEditing]);
+
+  useEffect(() => {
+    if (pageEditing) {
+      pageInputRef.current?.focus();
+      pageInputRef.current?.select();
+    }
+  }, [pageEditing]);
 
   return (
     <div className="relative h-full">
@@ -172,6 +238,66 @@ export default function PdfViewer({
             />
           ))}
         </div>
+      </div>
+
+      {/* Page navigation — discreet cluster centered at the bottom */}
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-[var(--border-subtle)] bg-white/95 p-1 shadow-[0_2px_8px_rgba(17,17,19,0.06)] backdrop-blur">
+        <button
+          type="button"
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage <= 0}
+          className="pointer-events-auto inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--ink-700)] transition hover:bg-[var(--surface-sunken)] hover:text-[var(--ink-900)] disabled:opacity-40 disabled:hover:bg-transparent"
+          aria-label="Previous page"
+          title="Previous page"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        {pageEditing ? (
+          <div className="pointer-events-auto flex items-center px-1">
+            <input
+              ref={pageInputRef}
+              type="text"
+              inputMode="numeric"
+              value={pageDraft}
+              onChange={(e) => setPageDraft(e.target.value.replace(/[^0-9]/g, ""))}
+              onBlur={commitPageEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitPageEdit();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setPageEditing(false);
+                }
+              }}
+              className="w-8 rounded-sm bg-transparent text-right text-[12px] font-medium tabular-nums text-[var(--ink-900)] outline-none focus:bg-[var(--surface-sunken)]"
+              aria-label="Go to page"
+            />
+            <span className="text-[12px] font-medium text-[var(--ink-700)]">
+              &nbsp;/ {numPages || 1}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={startPageEdit}
+            className="pointer-events-auto rounded-md px-2 py-0.5 text-[12px] font-medium tabular-nums text-[var(--ink-700)] transition hover:bg-[var(--surface-sunken)] hover:text-[var(--ink-900)]"
+            aria-label="Jump to page"
+            title="Click to jump to a specific page"
+          >
+            {Math.min(currentPage + 1, numPages || 1)} / {numPages || 1}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage >= numPages - 1}
+          className="pointer-events-auto inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--ink-700)] transition hover:bg-[var(--surface-sunken)] hover:text-[var(--ink-900)] disabled:opacity-40 disabled:hover:bg-transparent"
+          aria-label="Next page"
+          title="Next page"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* Zoom cluster — bottom-right of the document panel */}
