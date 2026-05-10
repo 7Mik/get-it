@@ -254,7 +254,7 @@ function Header({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] font-medium transition-colors ${
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] font-medium transition-colors ${
               open
                 ? "border-[var(--accent-100)] bg-[var(--accent-50)] text-[var(--accent-700)]"
                 : "border-[var(--border-subtle)] bg-white text-[var(--ink-900)] hover:bg-[var(--surface-sunken)]"
@@ -285,7 +285,7 @@ function Header({
                         onModeChange(m.id);
                         setOpen(false);
                       }}
-                      className={`flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full cursor-pointer items-start gap-2.5 px-3 py-2 text-left transition-colors ${
                         active
                           ? "bg-[var(--accent-50)]"
                           : "hover:bg-[var(--surface-sunken)]"
