@@ -8,7 +8,7 @@
 
 :root {
   /* Surfaces */
-  --surface-canvas: #ece6d6;       /* outer chrome — clearly cream against white */
+  --surface-canvas: #f6f5f2;       /* outer chrome (top bar strip) */
   --surface-raised: #ffffff;       /* main content + cards */
   --surface-sunken: #f3f2ef;       /* hovers, gentle wells */
   --surface-overlay: rgba(255, 255, 255, 0.85);
