@@ -21,28 +21,6 @@ import RightPane, { type RightPaneMode } from "@/components/RightPane";
 import type { DetectedConcept, VizSpec, VizType } from "@/lib/schemas";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
 
-// Runtime-mutable settings — initial values mirror the env-driven defaults
-// from lib/config.ts; the user can override them mid-session via the
-// settings popover in the top tab bar. Persisted to sessionStorage so a
-// reload keeps the user's adjustments.
-const SETTINGS_KEY_AUTO = "braynr:settings:autoGenerate";
-const SETTINGS_KEY_MAX = "braynr:settings:maxRetries";
-
-function readPersistedAuto(): boolean {
-  if (typeof window === "undefined") return AUTO_GENERATE_VIZ;
-  const v = window.sessionStorage.getItem(SETTINGS_KEY_AUTO);
-  if (v === "true") return true;
-  if (v === "false") return false;
-  return AUTO_GENERATE_VIZ;
-}
-
-function readPersistedMaxRetries(): number {
-  if (typeof window === "undefined") return MAX_VIZ_GEN_RETRIES;
-  const v = window.sessionStorage.getItem(SETTINGS_KEY_MAX);
-  if (!v) return MAX_VIZ_GEN_RETRIES;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : MAX_VIZ_GEN_RETRIES;
-}
 import {
   clearDocState,
   fetchServerDocState,
@@ -120,10 +98,14 @@ export default function ViewerClient({ docId }: { docId: string }) {
   );
   const restoredFromCache = persistedOnMount !== null;
 
-  // Runtime settings (env defaults at first render; overridable from the
-  // settings popover; sessionStorage-persisted within the tab).
-  const [autoGenerate, setAutoGenerate] = useState<boolean>(readPersistedAuto);
-  const [maxRetries, setMaxRetries] = useState<number>(readPersistedMaxRetries);
+  // Runtime settings. We start from the env-baked defaults so the first
+  // paint is meaningful, then hydrate from `/api/settings` once it lands.
+  // Every change posts back so the saved file is the canonical copy;
+  // survives app restarts and the dynamic localhost port the packaged
+  // app uses.
+  const [autoGenerate, setAutoGenerate] = useState<boolean>(AUTO_GENERATE_VIZ);
+  const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
+  const settingsHydratedRef = useRef(false);
   // Refs mirror the latest values so callbacks/effects captured by long-
   // running closures (page detection, runtime-error retry) read the live
   // setting instead of a stale capture.
@@ -131,19 +113,42 @@ export default function ViewerClient({ docId }: { docId: string }) {
   const maxRetriesRef = useRef(maxRetries);
   autoGenerateRef.current = autoGenerate;
   maxRetriesRef.current = maxRetries;
+
   useEffect(() => {
-    try {
-      window.sessionStorage.setItem(SETTINGS_KEY_AUTO, String(autoGenerate));
-    } catch {
-      /* noop */
-    }
+    let cancelled = false;
+    fetch("/api/settings", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((s: { autoGenerate: boolean; maxRetries: number }) => {
+        if (cancelled) return;
+        if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
+        if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
+        settingsHydratedRef.current = true;
+      })
+      .catch(() => {
+        settingsHydratedRef.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsHydratedRef.current) return;
+    void fetch("/api/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ autoGenerate }),
+      keepalive: true,
+    }).catch(() => {});
   }, [autoGenerate]);
   useEffect(() => {
-    try {
-      window.sessionStorage.setItem(SETTINGS_KEY_MAX, String(maxRetries));
-    } catch {
-      /* noop */
-    }
+    if (!settingsHydratedRef.current) return;
+    void fetch("/api/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ maxRetries }),
+      keepalive: true,
+    }).catch(() => {});
   }, [maxRetries]);
 
   // Right-pane mode (Visualizer / KG / Chat / Flashcards / Feynman). The
@@ -977,11 +982,12 @@ function SettingsMenu({
           >
             <div className="border-b border-[var(--border-subtle)] px-3 py-2">
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-500)]">
-                Visualizer settings
+                Settings
               </p>
               <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ink-400)]">
-                Mirrors <code>NEXT_PUBLIC_AUTO_GENERATE_VIZ</code> and{" "}
-                <code>NEXT_PUBLIC_MAX_VIZ_GEN_RETRIES</code>. Changes apply to this tab.
+                Saved automatically. Your choice survives app restarts. The
+                starting values come from <code>.env</code> at build time, or
+                the hardcoded defaults if you haven&apos;t set one.
               </p>
             </div>
 
