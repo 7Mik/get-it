@@ -196,9 +196,15 @@ async function startEmbeddedServer() {
   if (codexBin) env.CODEX_BINARY_PATH = codexBin;
 
   const nodeBin = process.execPath; // Electron's own node — works for ES modules
+  // Spawn the watchdog wrapper if it was copied next to server.js by
+  // electron-prepare; fall back to plain server.js otherwise. The watchdog
+  // monitors our pid and tree-kills the server if Electron dies abruptly
+  // (Force Quit, kernel SIGKILL, etc.) — the dead-man's switch case.
+  const watchdog = path.join(standalone, "server-watchdog.cjs");
   const serverJs = path.join(standalone, "server.js");
+  const entry = fs.existsSync(watchdog) ? watchdog : serverJs;
 
-  serverChild = spawn(nodeBin, [serverJs], {
+  serverChild = spawn(nodeBin, [entry], {
     cwd: standalone,
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
     stdio: ["ignore", "pipe", "pipe"],
@@ -255,11 +261,15 @@ function stopEmbeddedServer() {
   if (!serverChild || serverChild.killed) return;
   const pid = serverChild.pid;
   serverChild = null;
-  if (typeof pid === "number") killProcessTree(pid, "SIGTERM");
-  // Belt-and-suspenders: 200 ms later, escalate to SIGKILL on the group.
-  setTimeout(() => {
-    if (typeof pid === "number") killProcessTree(pid, "SIGKILL");
-  }, 200).unref();
+  if (typeof pid !== "number") return;
+  // Stage 1: SIGTERM the whole group — server + codex descendants get a
+  // chance to finish their synchronous writeFileSync calls.
+  killProcessTree(pid, "SIGTERM");
+  // Stage 2: SIGKILL anything that didn't respect SIGTERM. We deliberately
+  // do NOT .unref() this timer — when Electron is racing through its own
+  // shutdown (e.g. on Ctrl+C through the terminal chain) an unrefed timer
+  // can be skipped before it fires, leaving the server child orphaned.
+  setTimeout(() => killProcessTree(pid, "SIGKILL"), 120);
 }
 
 // ── Main window ─────────────────────────────────────────────────────────
@@ -405,6 +415,12 @@ app.on("before-quit", (event) => {
  * before terminating — and our server child + its codex subprocesses
  * would be reparented to launchd and pile up. Catch the signals here,
  * tree-kill the children, then exit.
+ *
+ * The two setTimeouts below are intentionally NOT .unref()'d. We need
+ * Node's event loop to wait for them — without that, an unref'd timer
+ * can be dropped when Electron tears down before the timer fires and
+ * the server child gets reparented to launchd. Total shutdown time
+ * after Ctrl+C is ~220 ms, all of it spent making sure the tree dies.
  */
 function signalShutdown(signal) {
   if (quitting) return;
@@ -414,15 +430,13 @@ function signalShutdown(signal) {
   } catch {
     /* ignore */
   }
-  // Give the SIGTERM/SIGKILL escalation in stopEmbeddedServer a moment
-  // to land before we drop our own event loop.
   setTimeout(() => {
     try {
       app.exit(signal === "SIGINT" ? 130 : 143);
     } catch {
       process.exit(signal === "SIGINT" ? 130 : 143);
     }
-  }, 250).unref();
+  }, 200);
 }
 process.on("SIGINT", () => signalShutdown("SIGINT"));
 process.on("SIGTERM", () => signalShutdown("SIGTERM"));

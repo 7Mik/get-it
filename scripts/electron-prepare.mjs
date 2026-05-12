@@ -91,7 +91,16 @@ async function syncStandaloneAssets() {
   await fs.rm(dstPublic, { recursive: true, force: true });
   await copyDir(srcPublic, dstPublic);
 
-  console.log("[electron-prepare] copied .next/static and public into standalone.");
+  // Server watchdog — sits next to server.js so the Electron main can
+  // spawn it as a single-file entry point and have it boot + monitor
+  // the real server.
+  const srcWatch = path.join(REPO_ROOT, "scripts", "server-watchdog.cjs");
+  const dstWatch = path.join(STANDALONE, "server-watchdog.cjs");
+  await fs.copyFile(srcWatch, dstWatch);
+
+  console.log(
+    "[electron-prepare] copied .next/static, public, and server-watchdog into standalone.",
+  );
 }
 
 function downloadBuffer(url, redirectsLeft = 4) {
