@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AccountButton from "@/components/AccountButton";
+import SettingsButton from "@/components/SettingsButton";
 import {
   ArrowLeft,
   BookOpen,
@@ -124,6 +126,8 @@ export default function LibraryClient() {
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
+          <SettingsButton />
+          <AccountButton />
         </div>
       </div>
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import UploadCard from "@/components/UploadCard";
+import AccountButton from "@/components/AccountButton";
+import SettingsButton from "@/components/SettingsButton";
 import {
   Upload,
   BookOpen,
@@ -43,6 +45,10 @@ export default function Home() {
           <BookOpen className="h-3.5 w-3.5 text-[var(--ink-400)]" />
           <span>Library</span>
         </Link>
+        <div className="ml-auto flex items-center gap-1 pr-1">
+          <SettingsButton />
+          <AccountButton />
+        </div>
       </div>
 
       {/* White content sheet */}

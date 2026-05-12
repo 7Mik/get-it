@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Upload,
@@ -16,6 +17,8 @@ import {
   Sigma,
   BarChart3,
   SquareFunction,
+  Network,
+  BookOpen,
 } from "lucide-react";
 
 type FeatureColor = "rose" | "amber" | "emerald" | "violet" | "sky";
@@ -60,9 +63,38 @@ type Sample = {
   sizeKb: number;
 };
 
+type LibraryRow = {
+  id: string;
+  filename: string;
+  uploadedAt: number;
+  numPages: number;
+  lastActivityAt: number;
+  kgStatus: "missing" | "building" | "ready" | "error";
+  kgEvaluationCount: number;
+};
+
+const FILENAME_TO_TITLE: Record<string, string> = {
+  "anatomy.pdf": "Anatomy & Physiology",
+  "physics.pdf": "Classical Mechanics",
+  "costituzione.pdf": "Costituzione Italiana",
+  "calculus.pdf": "Differential & Integral Calculus",
+  "chemistry.pdf": "Organic Chemistry",
+};
+
+function humaniseAgo(ts: number): string {
+  const dt = Date.now() - ts;
+  if (dt < 5_000) return "just now";
+  if (dt < 60_000) return `${Math.round(dt / 1000)}s ago`;
+  if (dt < 3_600_000) return `${Math.round(dt / 60_000)}m ago`;
+  if (dt < 86_400_000) return `${Math.round(dt / 3_600_000)}h ago`;
+  if (dt < 7 * 86_400_000) return `${Math.round(dt / 86_400_000)}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
 export default function UploadCard() {
   const router = useRouter();
   const [samples, setSamples] = useState<Sample[]>([]);
+  const [library, setLibrary] = useState<LibraryRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -73,7 +105,13 @@ export default function UploadCard() {
       .then((r) => r.json())
       .then((j) => setSamples(j.samples || []))
       .catch(() => {});
+    fetch("/api/library", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j: { docs?: LibraryRow[] }) => setLibrary(j.docs ?? []))
+      .catch(() => {});
   }, []);
+
+  const libraryPreview = useMemo(() => library.slice(0, 6), [library]);
 
   const startSample = useCallback(
     async (id: string) => {
@@ -207,6 +245,66 @@ export default function UploadCard() {
           Text-tagged PDFs work best. No OCR.
         </p>
       </div>
+
+      {/* Library — only render if there's actually something to show */}
+      {libraryPreview.length > 0 && (
+        <div className="mt-12">
+          <div className="mb-4 flex items-baseline justify-between">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ink-400)]">
+              Your library
+            </p>
+            {library.length > libraryPreview.length ? (
+              <Link
+                href="/library"
+                className="text-[11px] font-medium text-[var(--accent-700)] hover:underline"
+              >
+                See all {library.length}
+              </Link>
+            ) : (
+              <Link
+                href="/library"
+                className="text-[11px] font-medium text-[var(--accent-700)] hover:underline"
+              >
+                Open Library
+              </Link>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {libraryPreview.map((d) => {
+              const title =
+                FILENAME_TO_TITLE[d.filename] ?? d.filename.replace(/\.pdf$/i, "");
+              return (
+                <Link
+                  key={d.id}
+                  href={`/viewer/${d.id}`}
+                  className="group flex items-start gap-4 rounded-xl border border-[var(--border-subtle)] bg-white p-4 text-left transition hover:border-[var(--border-strong)]"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--ink-500)]">
+                    <FileText className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-semibold text-[var(--ink-900)]">
+                      {title}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11.5px] text-[var(--ink-500)]">
+                      {d.numPages} page{d.numPages === 1 ? "" : "s"} · last opened {humaniseAgo(d.lastActivityAt)}
+                    </p>
+                    {d.kgStatus === "ready" && d.kgEvaluationCount > 0 && (
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                        <Network className="h-2.5 w-2.5" />
+                        {d.kgEvaluationCount} eval{d.kgEvaluationCount === 1 ? "" : "s"}
+                      </p>
+                    )}
+                  </div>
+                  <div className="self-center text-[var(--ink-400)] transition group-hover:translate-x-0.5 group-hover:text-[var(--ink-900)]">
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Sample documents — Reflect-grade list cards */}
       <div className="mt-12">
