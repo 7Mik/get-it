@@ -3,11 +3,13 @@
  *
  * The version is baked at build time from `package.json#version` into
  * the public env var NEXT_PUBLIC_APP_VERSION (see next.config.ts).
- * In dev outside of next, the fallback "0.0.0-dev" surfaces so it's
- * obvious you're not on a real release.
+ * In dev / local installs the package.json version stays "0.0.0", so
+ * the chip and welcome popup both render "v0.0.0" — only a CI build
+ * triggered by a pushed git tag rewrites package.json to the real
+ * release number ahead of `next build`.
  */
 
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0-dev";
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
 
 export const GITHUB_OWNER = "beltromatti";
 export const GITHUB_REPO = "get-it";

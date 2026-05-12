@@ -77,9 +77,9 @@ export default function Home() {
         <div className="relative">
           <UploadCard />
         </div>
-        {/* Small non-invasive version tag, bottom-right of the page */}
+        {/* Non-invasive version tag, bottom-right of the page */}
         <div
-          className="pointer-events-none absolute bottom-3 right-4 text-[10.5px] font-medium tabular-nums text-[var(--ink-300)]"
+          className="pointer-events-none absolute bottom-3 right-4 text-[13px] font-medium tabular-nums text-[var(--ink-400)]"
           aria-label={`Get It. version ${APP_VERSION}`}
         >
           v{APP_VERSION}

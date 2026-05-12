@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings2 } from "lucide-react";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
+import { APP_VERSION } from "@/lib/version";
 
 export type SettingsPayload = {
   autoGenerate: boolean;
@@ -140,9 +141,17 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
   return (
     <>
       <div className="border-b border-[var(--border-subtle)] px-3 py-2">
-        <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-500)]">
-          Settings
-        </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-500)]">
+            Settings
+          </p>
+          <p
+            className="text-[10.5px] font-medium tabular-nums text-[var(--ink-400)]"
+            aria-label={`Get It. version ${APP_VERSION}`}
+          >
+            v{APP_VERSION}
+          </p>
+        </div>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ink-400)]">
           Saved automatically. Your choice survives app restarts.
         </p>
