@@ -19,7 +19,7 @@ import {
   FEEDBACK_EMAIL,
   TEAM,
 } from "@/lib/version";
-import { X, ExternalLink, Mail, Sparkles } from "lucide-react";
+import { X, ExternalLink, Mail } from "lucide-react";
 
 type WelcomeState = {
   dismissedVersion: string | null;
@@ -76,9 +76,8 @@ export default function WelcomePopup() {
         </button>
 
         <div className="px-6 pb-2 pt-7">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-700)]">
-            <Sparkles className="h-3 w-3" />
-            v{APP_VERSION}
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-700)]">
+            VERSION {APP_VERSION}
           </div>
           <h2 className="mt-2 text-[22px] font-bold tracking-tight text-[var(--ink-900)]">
             Welcome to{" "}
