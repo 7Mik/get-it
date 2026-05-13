@@ -94,16 +94,6 @@
       "!**/tsconfig*",
       "!node_modules/**/.bin"
     ],
-    "extraResources": [
-      {
-        "from": ".next/standalone/.next/static",
-        "to": "app.asar.unpacked/.next/standalone/.next/static"
-      },
-      {
-        "from": ".next/standalone/public",
-        "to": "app.asar.unpacked/.next/standalone/public"
-      }
-    ],
     "mac": {
       "category": "public.app-category.education",
       "target": "dmg",

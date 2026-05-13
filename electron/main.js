@@ -104,15 +104,13 @@ const DEV_URL = process.env.ELECTRON_DEV_URL || null;
 function resolveStandalonePath() {
   // Possible locations, in priority order:
   //   1. <app root>/.next/standalone (running unpacked / inside the source tree)
-  //   2. process.resourcesPath/app.asar.unpacked/.next/standalone (packaged)
-  //   3. process.resourcesPath/standalone (when we copied .next/standalone
-  //      out via electron-builder extraResources)
+  //   2. process.resourcesPath/app.asar.unpacked/.next/standalone (packaged —
+  //      asarUnpack: [".next/standalone/**"] in package.json puts it here)
   const candidates = [
     path.join(app.getAppPath(), ".next", "standalone"),
     process.resourcesPath
       ? path.join(process.resourcesPath, "app.asar.unpacked", ".next", "standalone")
       : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "standalone") : null,
   ].filter(Boolean);
   for (const c of candidates) {
     if (fs.existsSync(path.join(c, "server.js"))) return c;
