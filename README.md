@@ -17,7 +17,7 @@
 [![Tailwind CSS 4](https://img.shields.io/badge/Tailwind-4.x-38BDF8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Three.js](https://img.shields.io/badge/Three.js-r184-000000?logo=threedotjs&logoColor=white)](https://threejs.org)
 [![pdf.js](https://img.shields.io/badge/pdf.js-5.x-F40F02?logo=mozilla&logoColor=white)](https://mozilla.github.io/pdf.js/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](#license)
 
 <br />
 
@@ -38,6 +38,21 @@ Get It. is the layer that answers it. Drop a PDF. Watch the document tag itself 
 
 We took both lines literally.
 
+And here's the part most AI study apps skip: **Get It. runs on the ChatGPT subscription you already pay for.** No second subscription, no Get It. Pro tier, no per-message metering, no "AI tokens" wallet. The app talks to OpenAI through the official Codex CLI signed in with *your* ChatGPT account — your tier is the tier you get. One subscription, zero markup.
+
+## Bring your own ChatGPT
+
+The AI side of Get It. has no business model layered on top. There is nothing to subscribe to here. You sign in once with the **ChatGPT account you already use** (or an OpenAI API key, if you prefer), and every agent inside the app — visualization generation, the knowledge graph, chat, flashcards, quizzes, Feynman — runs against your own quota through the official Codex CLI.
+
+What that means in practice:
+
+- **You pay for AI once.** If you're already on ChatGPT Plus / Pro / Team / Enterprise / Edu, that subscription covers everything Get It. does. You don't need to buy Claude, Perplexity, Gemini Advanced, NotebookLM, or a dedicated "AI study app" credit pack on top.
+- **ChatGPT Plus is the practical floor.** The free ChatGPT tier *can* technically sign into Codex, but the limits are low enough that you'll bounce off them after the first few interactions; serious study sessions need Plus or higher. Higher tiers (Pro, Team, Enterprise, Edu) just give you more headroom in the same flow — same login, no app-side switch.
+- **Your data stays yours.** Every document, every chat thread, every flashcard rating, every quiz answer, every Feynman transcript, every knowledge-graph node lives on your disk under an OS-native data directory. We don't host a backend; we don't resell anything; the work-context journal is downloadable as a single JSON file from the right-pane menu.
+- **No "Get It. credits".** The only thing the app meters is your patience. If Codex hits a rate limit on your account, Get It. shows you a countdown banner and resumes the background work itself when the window clears — no second payment can buy past that, because there isn't one to buy.
+
+That choice is the differentiator. Other study apps wrap a model API with a marked-up subscription on top. Get It. wraps a *study workflow* around the AI access you already have.
+
 ## What it does
 
 | | |
@@ -54,7 +69,7 @@ We took both lines literally.
 
 ## Install (no terminal)
 
-Get It. is a desktop app. **Download the installer for your machine**, double-click, follow the one-time onboarding (sign in to ChatGPT or OpenAI), and you're done.
+Get It. is a desktop app. **Download the installer for your machine**, double-click, follow the one-time onboarding (sign in with the ChatGPT account you already use — Plus or higher recommended; or an OpenAI API key), and you're done. There's nothing else to buy.
 
 | Platform | Installer |
 |---|---|
@@ -67,7 +82,7 @@ Builds for every released version are on the **[Releases](https://github.com/bel
 
 ### First launch
 
-Sign in to your **ChatGPT or OpenAI** account once — that's the only setup. Drop a PDF in, or pick one of the five bundled samples (anatomy, classical mechanics, Italian constitution, calculus, organic chemistry). Tags, chats, flashcard decks, quizzes, Feynman sessions, knowledge graph: all stay on your computer, never on a server. Come back tomorrow and **Library** has every PDF you've opened, picked up exactly where you left them.
+Sign in once with the **ChatGPT account you already use** — that's the only setup. The app uses your own ChatGPT tier (Plus or higher gives a comfortable session; the free tier hits limits quickly); no separate Get It. subscription exists or ever will. Drop a PDF in, or pick one of the five bundled samples (anatomy, classical mechanics, Italian constitution, calculus, organic chemistry). Tags, chats, flashcard decks, quizzes, Feynman sessions, knowledge graph: all stay on your computer, never on a server. Come back tomorrow and **Library** has every PDF you've opened, picked up exactly where you left them.
 
 Get It. checks for a newer release on every launch and offers a one-click update — nothing to subscribe to, nothing to babysit.
 
@@ -171,6 +186,12 @@ Built in 24 hours at **GDG AI Hack 2026, Milan**, for the **Braynr** challenge. 
 
 [`technical-writeup.md`](technical-writeup.md) — the full design rationale: the four-axis rubric, the per-doc evaluator queue, the parallel visualizer agents, the LLM-code sandbox, the work-context journal, the 14 lessons from learning research that shaped the UX, and the desktop-packaging layer that wraps it all. Also rendered as [`technical-writeup.pdf`](technical-writeup.pdf).
 
+## Notice
+
+**Get It. is an independent project. It is not affiliated with, endorsed by, sponsored by, or otherwise associated with OpenAI.** The app uses the official open-source [Codex CLI](https://github.com/openai/codex) as the transport between the local app and OpenAI's models, signed in with the end user's own ChatGPT or OpenAI API account. "OpenAI", "ChatGPT", and "Codex" are trademarks of their respective owner — we use the names only to describe what Get It. interoperates with.
+
+Your use of the AI capabilities surfaced inside Get It. is subject to **OpenAI's own terms** ([Terms of Use](https://openai.com/policies/terms-of-use), [Usage Policies](https://openai.com/policies/usage-policies), [Privacy Policy](https://openai.com/policies/privacy-policy)) and to the Codex CLI's [own license and notes](https://github.com/openai/codex). When in doubt, consult those documents — they are the authoritative source for what the underlying model service permits, how data is handled on OpenAI's side, and what your account-tier allowances actually are.
+
 ## License
 
-MIT — see source files. Built for an open hackathon; do as you like with it.
+Apache License 2.0 — see [`LICENSE`](LICENSE). You may use, modify, and redistribute Get It. under the terms of that license. Built for an open hackathon and continued in public; contributions welcome.

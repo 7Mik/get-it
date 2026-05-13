@@ -8,6 +8,7 @@
     "email": "beltromatti@gmail.com"
   },
   "homepage": "https://github.com/beltromatti/get-it",
+  "license": "Apache-2.0",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
