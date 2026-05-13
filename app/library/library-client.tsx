@@ -16,7 +16,6 @@ import AccountButton from "@/components/AccountButton";
 import SettingsButton from "@/components/SettingsButton";
 import TooltipChip from "@/components/TooltipChip";
 import {
-  ArrowLeft,
   BookOpen,
   FileText,
   Loader2,
@@ -139,11 +138,6 @@ export default function LibraryClient() {
     <main className="flex flex-1 min-h-0 flex-col bg-[var(--surface-canvas)] text-[var(--ink-900)]">
       {/* Top tab bar */}
       <div className="tab-bar tab-bar--fused">
-        <TooltipChip tip="Back to upload">
-          <Link href="/" aria-label="Back to upload" className="tab-icon-btn">
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </Link>
-        </TooltipChip>
         <TooltipChip tip="Open or drop a new PDF.">
           <Link href="/" aria-label="Go to upload" className="tab-item">
             <Upload className="h-3.5 w-3.5 text-[var(--ink-400)]" />
