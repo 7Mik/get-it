@@ -32,7 +32,7 @@ const PROMPTS: Record<
   VizType,
   (ctx: { label: string; context: string; docTitle?: string }) => string
 > = {
-  "3d": ({ label, context, docTitle }) => `You are Braynr Visualizer's 3D scene generator.
+  "3d": ({ label, context, docTitle }) => `You are Get It.'s visualizer 3D scene generator.
 
 CONCEPT: ${label}
 FIELD: ${docTitle ?? "general"}
@@ -76,7 +76,7 @@ CONSTRAINTS:
 
 Reply with the JSON object only.`,
 
-  "2d-anim": ({ label, context, docTitle }) => `You are Braynr Visualizer's 2D Canvas animation generator.
+  "2d-anim": ({ label, context, docTitle }) => `You are Get It.'s visualizer 2D Canvas animation generator.
 
 CONCEPT: ${label}
 FIELD: ${docTitle ?? "general"}
@@ -120,7 +120,7 @@ CONSTRAINTS:
 
 Reply with the JSON object only.`,
 
-  formula: ({ label, context, docTitle }) => `You are Braynr Visualizer's formula generator.
+  formula: ({ label, context, docTitle }) => `You are Get It.'s visualizer formula generator.
 
 CONCEPT: ${label}
 FIELD: ${docTitle ?? "general"}
@@ -137,7 +137,7 @@ Avoid \\begin{align} environments unless necessary; prefer simple lines.
 
 Reply with the JSON object only.`,
 
-  graph: ({ label, context, docTitle }) => `You are Braynr Visualizer's graph generator.
+  graph: ({ label, context, docTitle }) => `You are Get It.'s visualizer graph generator.
 
 CONCEPT: ${label}
 FIELD: ${docTitle ?? "general"}
@@ -162,7 +162,7 @@ renders on a white background.
 
 Reply with the JSON object only.`,
 
-  "2d-text": ({ label, context, docTitle }) => `You are Braynr Visualizer's text-source generator.
+  "2d-text": ({ label, context, docTitle }) => `You are Get It.'s visualizer text-source generator.
 
 CONCEPT: ${label}
 FIELD: ${docTitle ?? "general"}

@@ -29,7 +29,7 @@ let firstCallSeen = false;
 
 page.on("console", (m) => {
   const t = m.text();
-  if (m.type() === "error" || m.type() === "warning" || t.includes("[braynr]")) {
+  if (m.type() === "error" || m.type() === "warning" || t.includes("[getit]")) {
     console.log("  [browser " + m.type() + "]", t.slice(0, 250));
   }
 });

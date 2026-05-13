@@ -35,7 +35,7 @@ import { scheduleEvaluation } from "@/lib/kg-runner";
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
-const SYSTEM = `You are Braynr's flashcard generator.
+const SYSTEM = `You are Get It.'s flashcard generator.
 
 Goal: produce a focused deck (4–10 cards) for the requested topic that
 forces ACTIVE recall and discriminates strong understanding from

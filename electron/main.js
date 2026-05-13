@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *  1. Resolve the per-user data directory (Electron's userData) and expose
- *     it to the Next.js child via the BRAYNR_DATA_DIR env var. The Next
+ *     it to the Next.js child via the GETIT_DATA_DIR env var. The Next
  *     server reads that env var to anchor every on-disk path — same
  *     resolution rules as in pure-Next dev, so the layout is identical
  *     whether you run `npm run dev` or open the packaged app.
@@ -185,7 +185,7 @@ async function startEmbeddedServer() {
   const port = await pickFreePort();
   const env = {
     ...process.env,
-    BRAYNR_DATA_DIR: DATA_DIR,
+    GETIT_DATA_DIR: DATA_DIR,
     PORT: String(port),
     HOSTNAME: "127.0.0.1",
     NODE_ENV: "production",

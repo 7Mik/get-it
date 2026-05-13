@@ -10,7 +10,7 @@
 import { runJson } from "../codex";
 import { detectionSchema, type DetectionResult } from "../schemas";
 
-const SYSTEM = `You are Braynr Visualizer's concept-extraction agent.
+const SYSTEM = `You are Get It.'s visualizer concept-extraction agent.
 
 GOAL
 Given the text of ONE page from a textbook-style PDF, identify the concepts

@@ -1,9 +1,9 @@
 /**
  * Generate multi-page well-structured demo PDFs across several fields.
- * Output: braynr-app/public/pdfs/{anatomy,physics,costituzione,calculus,chemistry}.pdf
+ * Output: public/pdfs/{anatomy,physics,costituzione,calculus,chemistry}.pdf
  *
  * Each PDF is a textbook-style chapter with realistic content packed with
- * concepts that map naturally to one of Braynr Visualizer's render modes:
+ * concepts that map naturally to one of Get It.'s visualizer render modes:
  *   - 3d        → anatomy organs, molecules, architectural elements
  *   - 2d-anim   → physics simulations (inclined plane, pendulum, projectile)
  *   - 2d-text   → legal citations, articles, sources
@@ -37,7 +37,7 @@ const docs: DocSpec[] = [
     filename: "anatomy.pdf",
     title: "Human Anatomy & Physiology",
     subtitle: "Chapter 4 — The Cardiovascular and Endocrine Systems",
-    author: "Braynr Open Textbook Project",
+    author: "Get It. Open Textbook Project",
     sections: [
       {
         heading: "4.1  The Heart and Systemic Circulation",
@@ -71,7 +71,7 @@ const docs: DocSpec[] = [
     filename: "physics.pdf",
     title: "Classical Mechanics",
     subtitle: "Chapter 6 — Forces, Energy, and Oscillations",
-    author: "Braynr Open Textbook Project",
+    author: "Get It. Open Textbook Project",
     sections: [
       {
         heading: "6.1  The Inclined Plane",
@@ -105,7 +105,7 @@ const docs: DocSpec[] = [
     filename: "costituzione.pdf",
     title: "La Costituzione della Repubblica Italiana",
     subtitle: "Estratti commentati — Principi fondamentali e diritti civili",
-    author: "Braynr Edizioni Giuridiche",
+    author: "Get It. Edizioni Giuridiche",
     sections: [
       {
         heading: "Articolo 1 — Forma della Repubblica",
@@ -143,7 +143,7 @@ const docs: DocSpec[] = [
     filename: "calculus.pdf",
     title: "Differential and Integral Calculus",
     subtitle: "Chapter 3 — Derivatives, Integrals, and Series",
-    author: "Braynr Open Textbook Project",
+    author: "Get It. Open Textbook Project",
     sections: [
       {
         heading: "3.1  The Derivative as a Limit",
@@ -177,7 +177,7 @@ const docs: DocSpec[] = [
     filename: "chemistry.pdf",
     title: "Organic Chemistry",
     subtitle: "Chapter 2 — Hydrocarbons, Functional Groups, and Geometry",
-    author: "Braynr Open Textbook Project",
+    author: "Get It. Open Textbook Project",
     sections: [
       {
         heading: "2.1  Methane and Tetrahedral Geometry",
@@ -213,7 +213,7 @@ function renderDoc(spec: DocSpec) {
       Title: spec.title,
       Author: spec.author,
       Subject: spec.subtitle,
-      Producer: "Braynr Demo PDF Generator",
+      Producer: "Get It. Demo PDF Generator",
     },
     bufferPages: true,
     pdfVersion: "1.7",

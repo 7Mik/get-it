@@ -23,7 +23,7 @@ const rightPanelHtml = await page.evaluate(() => {
     }
   }
   // fallback: find the visualizer header text
-  const hdr = Array.from(document.querySelectorAll("p")).find((p) => p.textContent === "Braynr Visualizer");
+  const hdr = Array.from(document.querySelectorAll("p")).find((p) => p.textContent === "Visualizer");
   return hdr ? hdr.closest("div.flex.h-full")?.parentElement?.outerHTML?.slice(0, 4000) : "(not found)";
 });
 console.log("=== RIGHT PANEL HTML ===");

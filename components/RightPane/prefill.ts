@@ -6,7 +6,7 @@
  * reads and clears it on mount, so the hint is single-use and tab-scoped.
  */
 
-const KEY = (docId: string) => `braynr:${docId}:tool-prefill`;
+const KEY = (docId: string) => `getit:${docId}:tool-prefill`;
 const TTL_MS = 30_000;
 
 export type ToolPrefill = {

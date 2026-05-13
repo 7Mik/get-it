@@ -29,7 +29,7 @@ import { scheduleEvaluation } from "@/lib/kg-runner";
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
-const SYSTEM = `You are Braynr's study companion for one specific document.
+const SYSTEM = `You are Get It.'s study companion for one specific document.
 
 You answer the student's questions about the document accurately and
 concisely. You teach with care:

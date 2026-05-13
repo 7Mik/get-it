@@ -130,7 +130,7 @@ export default function RightPane({ docId, mode, onModeChange, visualizer }: Pro
               // Pre-fill is handled inside each tool via sessionStorage hint.
               try {
                 window.sessionStorage.setItem(
-                  `braynr:${docId}:tool-prefill`,
+                  `getit:${docId}:tool-prefill`,
                   JSON.stringify({ tool, topic, ts: Date.now() }),
                 );
               } catch {
@@ -222,14 +222,14 @@ function Header({
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       a.href = url;
-      a.download = `braynr-work-context-${docId.slice(0, 8)}-${stamp}.json`;
+      a.download = `getit-work-context-${docId.slice(0, 8)}-${stamp}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       // Give the browser a tick before revoking so the download actually starts.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      console.warn("[braynr] work-context download failed", e);
+      console.warn("[getit] work-context download failed", e);
     } finally {
       setDownloading(false);
       setMoreOpen(false);

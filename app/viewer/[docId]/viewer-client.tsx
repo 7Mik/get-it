@@ -18,7 +18,7 @@ import RightPane, { type RightPaneMode } from "@/components/RightPane";
 import AccountButton from "@/components/AccountButton";
 import SettingsButton, { SETTINGS_EVENT } from "@/components/SettingsButton";
 import TooltipChip from "@/components/TooltipChip";
-import type { DetectedConcept, VizSpec, VizType } from "@/lib/schemas";
+import type { DetectedConcept, VizSpec } from "@/lib/schemas";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
 
 type DocMeta = {
@@ -114,7 +114,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
   // tab-scoped, sessionStorage backed so a reload restores it.
   const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>(() => {
     if (typeof window === "undefined") return "visualizer";
-    const v = window.sessionStorage.getItem(`braynr:${docId}:right-mode`);
+    const v = window.sessionStorage.getItem(`getit:${docId}:right-mode`);
     if (
       v === "visualizer" ||
       v === "graph" ||
@@ -128,7 +128,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
   });
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(`braynr:${docId}:right-mode`, rightPaneMode);
+      window.sessionStorage.setItem(`getit:${docId}:right-mode`, rightPaneMode);
     } catch {
       /* noop */
     }
@@ -318,7 +318,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
 
   if (loadError) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[var(--surface-canvas)] text-[var(--ink-900)]">
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 bg-[var(--surface-canvas)] text-[var(--ink-900)]">
         <AlertCircle className="h-7 w-7 text-rose-500" />
         <p className="text-sm text-[var(--ink-700)]">{loadError}</p>
         <Link
@@ -333,7 +333,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
 
   if (!meta) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--surface-canvas)] text-[var(--ink-500)]">
+      <div className="flex flex-1 min-h-0 items-center justify-center bg-[var(--surface-canvas)] text-[var(--ink-500)]">
         <RefreshCw className="mr-2 h-4 w-4 animate-spin text-[var(--accent-600)]" />
         loading document…
       </div>
@@ -355,7 +355,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
       : docTitle ?? meta.filename;
 
   return (
-    <div className="flex h-screen flex-col bg-[var(--surface-canvas)]">
+    <div className="flex flex-1 min-h-0 flex-col bg-[var(--surface-canvas)]">
       {/* Top tab bar */}
       <div className="tab-bar shrink-0">
         <TooltipChip tip="Back to upload">

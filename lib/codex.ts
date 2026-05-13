@@ -117,7 +117,7 @@ export type CodexHealth = {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __braynrCodexHealth: CodexHealth | undefined;
+  var __getitCodexHealth: CodexHealth | undefined;
 }
 
 const _initialHealth: CodexHealth = {
@@ -131,8 +131,8 @@ const _initialHealth: CodexHealth = {
 };
 
 const health: CodexHealth =
-  globalThis.__braynrCodexHealth ??
-  (globalThis.__braynrCodexHealth = { ..._initialHealth });
+  globalThis.__getitCodexHealth ??
+  (globalThis.__getitCodexHealth = { ..._initialHealth });
 
 export function getCodexHealth(): CodexHealth {
   // If a rate-limit retry deadline has passed, auto-clear so the UI

@@ -64,7 +64,7 @@ RULES
 OUTPUT JSON.`;
 
 const SUMMARY_SYSTEM = `You evaluate a finished Feynman session for the
-Braynr learning tracker. The student played the teacher; a child asked
+Get It. learning tracker. The student played the teacher; a child asked
 ${MAX_TURNS} prompts. The transcript is below.
 
 Write a single paragraph (3–6 sentences) in the document's language that

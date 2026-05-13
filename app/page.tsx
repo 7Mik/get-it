@@ -37,7 +37,7 @@ const ORNAMENTS = [
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--surface-canvas)] text-[var(--ink-900)]">
+    <main className="flex flex-1 min-h-0 flex-col bg-[var(--surface-canvas)] text-[var(--ink-900)]">
       {/* Top tab bar — Reflect-style browser-tabs */}
       <div className="tab-bar tab-bar--fused">
         <div className="tab-item" data-active="true">

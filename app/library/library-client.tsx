@@ -136,7 +136,7 @@ export default function LibraryClient() {
   const empty = rows != null && rows.length === 0;
 
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--surface-canvas)] text-[var(--ink-900)]">
+    <main className="flex flex-1 min-h-0 flex-col bg-[var(--surface-canvas)] text-[var(--ink-900)]">
       {/* Top tab bar */}
       <div className="tab-bar tab-bar--fused">
         <TooltipChip tip="Back to upload">

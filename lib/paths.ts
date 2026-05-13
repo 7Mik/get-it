@@ -2,7 +2,7 @@
  * Single source of truth for every on-disk path the app uses.
  *
  * Resolution order for the root data directory:
- *   1. `BRAYNR_DATA_DIR` env var — set by the Electron main process to
+ *   1. `GETIT_DATA_DIR` env var — set by the Electron main process to
  *      `app.getPath('userData')` so the packaged app stores data in the
  *      conventional OS location (e.g. ~/Library/Application Support/get-it).
  *   2. A stable per-OS user-data folder under the user's home. We pick the
@@ -50,8 +50,8 @@ function defaultUserDataDir(): string {
   }
 }
 
-export const DATA_DIR: string = process.env.BRAYNR_DATA_DIR
-  ? path.resolve(process.env.BRAYNR_DATA_DIR)
+export const DATA_DIR: string = process.env.GETIT_DATA_DIR
+  ? path.resolve(process.env.GETIT_DATA_DIR)
   : defaultUserDataDir();
 
 export const DOCS_DIR = path.join(DATA_DIR, "docs");

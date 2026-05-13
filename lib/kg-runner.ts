@@ -33,7 +33,7 @@ import { loadWorkContext, summariseForEvaluator } from "./work-context";
 
 // ── Build prompt ──────────────────────────────────────────────────────
 
-const BUILD_SYSTEM = `You are Braynr's knowledge-graph architect.
+const BUILD_SYSTEM = `You are Get It.'s knowledge-graph architect.
 
 GOAL
 You receive the full text of a textbook-style PDF. Build the BEST possible
@@ -201,7 +201,7 @@ export async function buildKG(docId: string): Promise<KnowledgeGraph> {
 
 // ── Evaluation ────────────────────────────────────────────────────────
 
-const EVALUATE_SYSTEM = `You are Braynr's evaluator agent. You score how
+const EVALUATE_SYSTEM = `You are Get It.'s evaluator agent. You score how
 well a student has mastered each concept in a knowledge graph based on
 their actual interactions with three learning tools (chat, flashcards,
 Feynman).

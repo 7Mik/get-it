@@ -45,11 +45,11 @@ type StoreEntry = DocMeta & {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __braynrStore: Map<string, StoreEntry> | undefined;
+  var __getitStore: Map<string, StoreEntry> | undefined;
 }
 
 const store: Map<string, StoreEntry> =
-  globalThis.__braynrStore ?? (globalThis.__braynrStore = new Map());
+  globalThis.__getitStore ?? (globalThis.__getitStore = new Map());
 
 export function newDocId(): string {
   return randomUUID();
