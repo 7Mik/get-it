@@ -66,9 +66,11 @@ Builds for every released version are on the **[Releases](https://github.com/bel
 
 ### First launch: what to expect
 
-1. The **setup wizard** opens. It checks that the Codex CLI binary is present (Get It ships it for you — ~190 MB) and at the required version, then asks you to sign in. A browser tab opens for the standard ChatGPT / OpenAI OAuth flow. When you finish there, the dialog continues automatically.
-2. The main window opens on **Upload**. Drop a PDF or pick one of the five bundled sample textbooks (anatomy, classical mechanics, Italian constitution, calculus, organic chemistry) — they're already inside the app, no extra step.
-3. Switch to **Library** at any time to see every PDF you've worked on. Click one and you land exactly where you left off — same tags on the document, same chat threads, same flashcard decks, same Feynman sessions, same knowledge-graph scores.
+1. **Update check.** Every boot, before anything else, Get It asks GitHub Releases whether there's a newer build for your platform. If there is, you see the version diff + release notes + one "Update now" button that downloads the right installer and hands it to the OS — your library and study data stay on disk untouched.
+2. **Setup wizard.** Checks that the bundled Codex CLI binary is present (Get It ships it for you — ~190 MB) and at the required version, then asks you to sign in. A browser tab opens for the standard ChatGPT / OpenAI OAuth flow; when you finish there, the dialog advances automatically.
+3. **Welcome card.** Once-per-version hello from the four students who built this — names, GitHub link, the feedback inbox. Dismiss with "Let's go" for the session, "Don't show again" to pin the dismissal to this release.
+4. The main window opens on **Upload**. Drop a PDF or pick one of the five bundled sample textbooks (anatomy, classical mechanics, Italian constitution, calculus, organic chemistry) — they're already inside the app, no extra step.
+5. Switch to **Library** at any time to see every PDF you've worked on. Click one and you land exactly where you left off — same tags on the document, same chat threads, same flashcard decks, same Feynman sessions, same knowledge-graph scores.
 
 ### Storage
 
@@ -106,9 +108,12 @@ upload  ─┬──► visualizer pipeline ─► concept tags + 3D / anim / fo
 
 Every agent — concept detection, visualization spec, kg-build, kg-evaluate, chat, flashcard generation, Feynman child, Feynman summary — is a single `codex exec` invocation through `@openai/codex-sdk`, constrained by a strict per-call JSON Schema. **Eight prompts behind one auth path. Eight schemas behind one shared SDK wrapper.** No god-prompt. No black box.
 
+Detection and per-tag visualization generation aren't renderer loops — they're first-class **server-side jobs**, singleton-per-doc and idempotent. Open a PDF, navigate to Library, open another PDF, leave the window minimised: every doc you've touched keeps its agents running in the background, library badges update live, and you can come back hours later to find work finished without re-doing anything. Multiple PDFs progress in parallel.
+
 The desktop app is a thin Electron shell over the same Next.js 16 application that we ran in the browser at the hackathon. The shell:
 
 - ships the Codex CLI binary inside the bundle so users don't install anything by hand,
+- on every launch, before anything else, checks GitHub Releases for a newer build and offers an in-app one-click update,
 - runs a first-launch wizard that handles installation gaps and the OAuth login,
 - spawns the Next.js standalone server on a free localhost port and points a single Chromium window at it,
 - watches Codex for auth loss and rate-limit hits, and re-enters the setup wizard or shows a countdown banner without losing any work,
