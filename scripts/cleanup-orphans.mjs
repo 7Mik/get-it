@@ -13,7 +13,7 @@
  * server child and any `codex exec` calls in flight get reparented to
  * the init process (launchd on macOS, systemd on Linux) and survive
  * indefinitely — piling up in the dock and racing for the localhost
- * port on the next run. Running this before `npm run electron:dev`
+ * port on the next run. Running this before `npm run dev`
  * sweeps them away.
  *
  * Safe-by-design: we only ever match processes whose argv contains the

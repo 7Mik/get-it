@@ -95,7 +95,7 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(path.join(DATA_DIR, "logs"), { recursive: true });
 
 // ── Resolve the Next.js standalone server entry ─────────────────────────
-// In `electron .` dev mode the user runs `npm run electron:dev` which
+// In `electron .` dev mode the user runs `npm run dev:hmr` which
 // boots `next dev` separately and points us at it via the env var.
 // In production the standalone server lives next to this file inside the
 // app's resources directory.
