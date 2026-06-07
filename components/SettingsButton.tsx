@@ -3,11 +3,15 @@
 /**
  * Top-bar Settings button + popover.
  *
- * Two runtime knobs (auto-generate, viz repair budget), persisted to
- * `/api/settings`. Stateless from the parent's POV — every popover open
- * does a fresh fetch, every change POSTs back, and a `getit:settings`
- * CustomEvent is dispatched so other components on the page (the viewer
- * orchestrator in particular) can react mid-session without polling.
+ * Three runtime knobs:
+ *   1. AI Provider selector (Codex CLI, Gemini CLI, Claude Code)
+ *   2. Auto-generate toggle
+ *   3. Viz repair budget (max retries)
+ *
+ * Persisted to `/api/settings`. Stateless from the parent's POV — every
+ * popover open does a fresh fetch, every change POSTs back, and a
+ * `getit:settings` CustomEvent is dispatched so other components on the
+ * page can react mid-session without polling.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,7 +20,16 @@ import { Settings2 } from "lucide-react";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
 import { APP_VERSION } from "@/lib/version";
 
+type ProviderName = "codex" | "gemini" | "claude";
+
+const PROVIDER_OPTIONS: { value: ProviderName; label: string; note: string }[] = [
+  { value: "codex", label: "Codex CLI", note: "OpenAI Codex SDK" },
+  { value: "gemini", label: "Gemini CLI", note: "Requires gemini CLI installed" },
+  { value: "claude", label: "Claude Code", note: "Requires claude CLI installed" },
+];
+
 export type SettingsPayload = {
+  provider: ProviderName;
   autoGenerate: boolean;
   maxRetries: number;
 };
@@ -56,7 +69,7 @@ export default function SettingsButton() {
         </button>
         {!open && (
           <span className="viz-tooltip" role="tooltip">
-            Settings — visualization preferences for this app.
+            Settings — provider, visualization preferences.
           </span>
         )}
       </span>
@@ -79,6 +92,7 @@ export default function SettingsButton() {
 }
 
 function SettingsPanel({ refreshKey }: { refreshKey: string }) {
+  const [provider, setProvider] = useState<ProviderName>("codex");
   const [autoGenerate, setAutoGenerate] = useState<boolean>(AUTO_GENERATE_VIZ);
   const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
   const hydratedRef = useRef(false);
@@ -93,6 +107,8 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
       .then((r) => r.json())
       .then((s: SettingsPayload) => {
         if (cancelled) return;
+        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude")
+          setProvider(s.provider);
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
         if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
         hydratedRef.current = true;
@@ -127,6 +143,14 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
       .catch(() => {});
   }, []);
 
+  const onProvider = useCallback(
+    (v: ProviderName) => {
+      setProvider(v);
+      persist({ provider: v });
+    },
+    [persist],
+  );
+
   const onAutoGenerate = useCallback(
     (v: boolean) => {
       setAutoGenerate(v);
@@ -160,6 +184,32 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         </div>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ink-400)]">
           Saved automatically. Your choice survives app restarts.
+        </p>
+      </div>
+
+      {/* AI Provider selector */}
+      <div className="border-b border-[var(--border-subtle)] px-3 py-2.5">
+        <p className="mb-1.5 text-[12.5px] font-medium text-[var(--ink-900)]">
+          AI Provider
+        </p>
+        <div className="flex gap-1 rounded-lg bg-[var(--surface-sunken)] p-0.5">
+          {PROVIDER_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onProvider(opt.value)}
+              className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-all ${
+                provider === opt.value
+                  ? "bg-white text-[var(--ink-900)] shadow-sm ring-1 ring-[var(--border-subtle)]"
+                  : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[10.5px] text-[var(--ink-400)]">
+          {PROVIDER_OPTIONS.find((o) => o.value === provider)?.note}
         </p>
       </div>
 

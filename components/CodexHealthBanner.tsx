@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Codex health banner.
+ * AI provider health banner.
  *
- * Renders nothing while Codex is healthy. When the most recent Codex call
- * failed with a classified error, slides down a banner that explains the
- * problem in plain language and exposes the right next step:
+ * Renders nothing while the AI backend is healthy. When the most recent
+ * call failed with a classified error, slides down a banner that explains
+ * the problem in plain language and exposes the right next step:
  *
  *   • auth_lost / binary_missing → "Re-connect" button that invokes the
  *     Electron setup wizard (via the preload bridge). In a plain browser
@@ -13,9 +13,11 @@
  *
  *   • rate_limit → live countdown to the retryAt timestamp (when known),
  *     or a static "try again later" line. Auto-hides once the deadline
- *     passes and the next Codex call succeeds.
+ *     passes and the next call succeeds.
  *
  *   • generic → simple "Something went wrong" with a Retry hint.
+ *
+ * Provider-aware: adapts labels and messages based on the active provider.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +31,20 @@ type Health = {
   window: "5h" | "weekly" | "unknown" | null;
   serial: number;
   lastOkAt: number | null;
+};
+
+type ProviderName = "codex" | "gemini" | "claude";
+
+const PROVIDER_LABELS: Record<ProviderName, string> = {
+  codex: "Codex",
+  gemini: "Gemini CLI",
+  claude: "Claude Code",
+};
+
+const PROVIDER_DOCS: Record<ProviderName, string> = {
+  codex: "https://github.com/openai/codex#login",
+  gemini: "https://github.com/google-gemini/gemini-cli",
+  claude: "https://docs.anthropic.com/en/docs/claude-code",
 };
 
 declare global {
@@ -53,21 +69,29 @@ function formatDuration(ms: number): string {
 
 export default function CodexHealthBanner() {
   const [health, setHealth] = useState<Health | null>(null);
+  const [provider, setProvider] = useState<ProviderName>("codex");
   const [dismissedSerial, setDismissedSerial] = useState<number>(-1);
   const [reconnecting, setReconnecting] = useState(false);
   const [, force] = useState(0);
 
-  // Poll cadence: fast when there's an active problem so the user sees
-  // recovery quickly; slow when healthy so we don't waste battery.
+  // Fetch health + active provider
   useEffect(() => {
     let cancelled = false;
     const fetchOnce = async () => {
       try {
-        const r = await fetch("/api/codex/health", { cache: "no-store" });
-        if (!r.ok) return;
-        const j = (await r.json()) as Health;
+        const [healthRes, settingsRes] = await Promise.all([
+          fetch("/api/codex/health", { cache: "no-store" }),
+          fetch("/api/settings", { cache: "no-store" }),
+        ]);
         if (cancelled) return;
-        setHealth(j);
+        if (healthRes.ok) {
+          const j = (await healthRes.json()) as Health;
+          if (!cancelled) setHealth(j);
+        }
+        if (settingsRes.ok) {
+          const s = (await settingsRes.json()) as { provider?: ProviderName };
+          if (!cancelled && s.provider) setProvider(s.provider);
+        }
       } catch {
         /* ignore */
       }
@@ -87,19 +111,21 @@ export default function CodexHealthBanner() {
     return () => clearInterval(id);
   }, [health?.ok, health?.kind, health?.retryAt]);
 
+  const label = PROVIDER_LABELS[provider];
+
   const handleReconnect = useCallback(async () => {
-    if (!window.getit?.runCodexSetup) {
-      // dev/browser fallback — open a help link
-      window.open("https://github.com/openai/codex#login", "_blank");
+    if (provider === "codex" && window.getit?.runCodexSetup) {
+      setReconnecting(true);
+      try {
+        await window.getit.runCodexSetup();
+      } finally {
+        setReconnecting(false);
+      }
       return;
     }
-    setReconnecting(true);
-    try {
-      await window.getit.runCodexSetup();
-    } finally {
-      setReconnecting(false);
-    }
-  }, []);
+    // For Gemini/Claude or browser fallback, open docs
+    window.open(PROVIDER_DOCS[provider], "_blank");
+  }, [provider]);
 
   const view = useMemo(() => {
     if (!health || health.ok) return null;
@@ -110,7 +136,7 @@ export default function CodexHealthBanner() {
   if (!view) return null;
 
   let icon = <AlertTriangle className="h-4 w-4 text-amber-600" />;
-  let title = "Codex hit a snag";
+  let title = `${label} hit a snag`;
   let body: React.ReactNode = view.message ?? "";
   let action: React.ReactNode = null;
 
@@ -118,12 +144,12 @@ export default function CodexHealthBanner() {
     icon = <KeyRound className="h-4 w-4 text-rose-600" />;
     title =
       view.kind === "auth_lost"
-        ? "Codex needs a sign-in"
-        : "Codex CLI is missing";
+        ? `${label} needs a sign-in`
+        : `${label} is missing`;
     body =
       view.kind === "auth_lost"
-        ? "Your Codex session expired or signed out. Re-connect to keep working — your data is safe."
-        : "We can't find the Codex CLI binary. Open the setup wizard to install it.";
+        ? `Your ${label} session expired or signed out. Re-connect to keep working — your data is safe.`
+        : `We can't find the ${label} binary. ${provider === "codex" ? "Open the setup wizard to install it." : "Install it or check your PATH."}`;
     action = (
       <button
         type="button"
@@ -136,7 +162,7 @@ export default function CodexHealthBanner() {
         ) : (
           <KeyRound className="h-3 w-3" />
         )}
-        Re-connect
+        {provider === "codex" ? "Re-connect" : "Install"}
       </button>
     );
   } else if (view.kind === "rate_limit") {
@@ -149,7 +175,7 @@ export default function CodexHealthBanner() {
           : "current";
     if (view.retryAt) {
       const remaining = view.retryAt - Date.now();
-      title = `Codex ${win} limit reached`;
+      title = `${label} ${win} limit reached`;
       body = (
         <>
           You&apos;ve used your {win} quota. We&apos;ll resume in{" "}
@@ -158,13 +184,13 @@ export default function CodexHealthBanner() {
         </>
       );
     } else {
-      title = `Codex ${win} limit reached`;
+      title = `${label} ${win} limit reached`;
       body =
         "You've hit your usage quota. Try again later — your work is saved.";
     }
   } else {
     icon = <AlertTriangle className="h-4 w-4 text-amber-600" />;
-    title = "Last Codex call failed";
+    title = `Last ${label} call failed`;
     body = view.message ?? "Unknown error. Try again.";
   }
 

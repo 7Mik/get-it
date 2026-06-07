@@ -59,10 +59,12 @@ const net = require("node:net");
 const http = require("node:http");
 const {
   ensureCodexReady,
+  ensureProviderReady,
   showSetupWindow,
   resolveCodexBinary,
   refreshCodexStatus,
   onCodexStatusChange,
+  readSavedProvider,
 } = require("./setup");
 const { maybeRunUpdate } = require("./updater");
 
@@ -198,9 +200,12 @@ async function startEmbeddedServer() {
   };
   // Tell the SDK where the codex binary actually is — when we bundle the
   // platform-specific package outside the standalone trace, this lets it
-  // skip module resolution entirely.
-  const codexInfo = resolveCodexBinary();
-  if (codexInfo) env.CODEX_BINARY_PATH = codexInfo.path;
+  // skip module resolution entirely. Only relevant when using the Codex provider.
+  const savedProvider = readSavedProvider();
+  if (savedProvider === "codex") {
+    const codexInfo = resolveCodexBinary();
+    if (codexInfo) env.CODEX_BINARY_PATH = codexInfo.path;
+  }
 
   const nodeBin = process.execPath; // Electron's own node — works for ES modules
   // Spawn the watchdog wrapper if it was copied next to server.js by
@@ -420,9 +425,9 @@ app.whenReady().then(async () => {
       return;
     }
 
-    // Run the codex wizard. We can't start the Next server without
-    // codex — the agents would crash on the first request.
-    const ok = await ensureCodexReady();
+    // Run the provider setup. For Codex this runs the full wizard;
+    // for Gemini/Claude it checks PATH, attempts npm install, or shows docs.
+    const ok = await ensureProviderReady();
     if (!ok) {
       app.quit();
       return;

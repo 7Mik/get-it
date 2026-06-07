@@ -17,29 +17,46 @@ import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./paths";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "./config";
+import type { ProviderName } from "./provider-types";
 
 export type AppSettings = {
+  provider: ProviderName;
   autoGenerate: boolean;
   maxRetries: number;
 };
 
-const VERSION = 1 as const;
+const VERSION = 2 as const;
 const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
+
+/** Default provider from env, fallback to "codex". */
+const DEFAULT_PROVIDER: ProviderName = (() => {
+  const raw = process.env.NEXT_PUBLIC_DEFAULT_PROVIDER;
+  if (raw === "gemini" || raw === "claude") return raw;
+  return "codex";
+})();
 
 function defaultsFromEnv(): AppSettings {
   return {
+    provider: DEFAULT_PROVIDER,
     autoGenerate: AUTO_GENERATE_VIZ,
     maxRetries: MAX_VIZ_GEN_RETRIES,
   };
+}
+
+function isValidProvider(v: unknown): v is ProviderName {
+  return v === "codex" || v === "gemini" || v === "claude";
 }
 
 export function loadSettings(): AppSettings {
   try {
     const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
     const parsed = JSON.parse(raw) as { v: number } & Partial<AppSettings>;
-    if (parsed && parsed.v === VERSION) {
+    if (parsed && (parsed.v === VERSION || parsed.v === 1)) {
       const env = defaultsFromEnv();
       return {
+        provider: isValidProvider(parsed.provider)
+          ? parsed.provider
+          : env.provider,
         autoGenerate:
           typeof parsed.autoGenerate === "boolean"
             ? parsed.autoGenerate
@@ -60,6 +77,7 @@ export function saveSettings(s: AppSettings): void {
   const file = {
     v: VERSION,
     savedAt: Date.now(),
+    provider: isValidProvider(s.provider) ? s.provider : "codex",
     autoGenerate: !!s.autoGenerate,
     maxRetries: Math.min(10, Math.max(0, Math.floor(s.maxRetries))),
   };

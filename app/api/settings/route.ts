@@ -25,6 +25,10 @@ export async function POST(req: Request) {
   const b = (body && typeof body === "object" ? body : {}) as Partial<AppSettings>;
   const current = loadSettings();
   const next: AppSettings = {
+    provider:
+      b.provider === "codex" || b.provider === "gemini" || b.provider === "claude"
+        ? b.provider
+        : current.provider,
     autoGenerate:
       typeof b.autoGenerate === "boolean" ? b.autoGenerate : current.autoGenerate,
     maxRetries:

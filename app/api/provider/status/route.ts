@@ -1,0 +1,142 @@
+/**
+ * GET /api/provider/status
+ *
+ * Returns the active provider's status snapshot for the account panel.
+ *
+ * For Codex: delegates to the existing readAccountInfo() + readRateLimits().
+ * For Gemini/Claude: checks binary presence and auth status (stub panels).
+ */
+
+import { NextResponse } from "next/server";
+import { loadSettings } from "@/lib/settings-store";
+import { PROVIDER_LABELS, PROVIDER_DOCS } from "@/lib/provider-types";
+import type { ProviderName } from "@/lib/provider-types";
+import {
+  readAccountInfo,
+  readRateLimits,
+  type CodexAccountInfo,
+  type CodexRateLimits,
+} from "@/lib/codex-account";
+import { whichBinary, augmentedPath } from "@/lib/providers/cli-runner";
+
+export const runtime = "nodejs";
+
+type ProviderStatus = {
+  provider: ProviderName;
+  label: string;
+  docsUrl: string;
+  installed: boolean;
+  authenticated: boolean;
+  version: string | null;
+  // Codex-specific fields (null for other providers)
+  account: CodexAccountInfo | null;
+  rateLimits: CodexRateLimits | null;
+};
+
+function checkCliAuth(binary: string, provider: ProviderName): boolean {
+  const { spawnSync } = require("node:child_process");
+
+  if (provider === "claude") {
+    // claude auth status — exit code 0 = logged in
+    try {
+      const r = spawnSync(binary, ["auth", "status"], {
+        encoding: "utf8",
+        timeout: 5000,
+        env: { ...process.env, PATH: augmentedPath() },
+      });
+      return r.status === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  if (provider === "gemini") {
+    // Gemini doesn't have a dedicated auth check command.
+    // A successful --version is a reasonable proxy — if the binary
+    // runs, auth happens on first real prompt.
+    try {
+      const r = spawnSync(binary, ["--version"], {
+        encoding: "utf8",
+        timeout: 5000,
+        env: { ...process.env, PATH: augmentedPath() },
+      });
+      return r.status === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+function getCliVersion(binary: string): string | null {
+  const { spawnSync } = require("node:child_process");
+  try {
+    const r = spawnSync(binary, ["--version"], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: augmentedPath() },
+    });
+    if (r.status !== 0) return null;
+    const out = (r.stdout || "").trim();
+    // Extract version number from output
+    const m = /(\d+\.\d+\.\d+(?:[-+][a-z0-9.-]+)?)/i.exec(out);
+    return m ? m[1] : out.split("\n")[0]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET() {
+  const settings = loadSettings();
+  const provider = settings.provider;
+  const label = PROVIDER_LABELS[provider];
+  const docsUrl = PROVIDER_DOCS[provider];
+
+  if (provider === "codex") {
+    // Full Codex account info
+    const account: CodexAccountInfo | null = (() => {
+      try {
+        return readAccountInfo();
+      } catch {
+        return null;
+      }
+    })();
+    let limits: CodexRateLimits | null = null;
+    try {
+      limits = await readRateLimits();
+    } catch {
+      limits = null;
+    }
+    const status: ProviderStatus = {
+      provider,
+      label,
+      docsUrl,
+      installed: true, // if we got here, Codex SDK is available
+      authenticated: !!account?.email,
+      version: null,
+      account,
+      rateLimits: limits,
+    };
+    return NextResponse.json(status);
+  }
+
+  // Gemini / Claude — stub status
+  const binaryName = provider === "gemini" ? "gemini" : "claude";
+  const binaryPath = whichBinary(binaryName);
+  const installed = !!binaryPath;
+  const authenticated = installed ? checkCliAuth(binaryPath, provider) : false;
+  const version = installed ? getCliVersion(binaryPath) : null;
+
+  const status: ProviderStatus = {
+    provider,
+    label,
+    docsUrl,
+    installed,
+    authenticated,
+    version,
+    account: null,
+    rateLimits: null,
+  };
+  return NextResponse.json(status);
+}

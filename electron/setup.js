@@ -576,6 +576,195 @@ function onCodexStatusChange(cb) {
 }
 
 // ── Public: run before main window opens ────────────────────────────────
+
+/**
+ * Read the saved provider from settings.json.
+ * Falls back to "codex" if the file is missing or malformed.
+ */
+function readSavedProvider() {
+  try {
+    const settingsPath = path.join(app.getPath("userData"), "settings.json");
+    if (!fs.existsSync(settingsPath)) return "codex";
+    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    if (raw.provider === "gemini" || raw.provider === "claude") return raw.provider;
+    return "codex";
+  } catch {
+    return "codex";
+  }
+}
+
+/**
+ * Resolve a CLI binary on $PATH with augmented search paths.
+ * Returns the absolute path or null.
+ */
+function resolveCliOnPath(binaryName) {
+  const cmd = process.platform === "win32" ? "where.exe" : "which";
+  const home = os.homedir();
+  const extraPaths = [
+    "/usr/local/bin",
+    "/opt/homebrew/bin",
+    `${home}/.npm-global/bin`,
+    `${home}/.nvm/current/bin`,
+    `${home}/.local/bin`,
+  ];
+  const basePath = process.env.PATH || "";
+  const existing = new Set(basePath.split(":"));
+  const additions = extraPaths.filter((p) => !existing.has(p));
+  const augmented = additions.length ? `${basePath}:${additions.join(":")}` : basePath;
+
+  try {
+    const r = spawnSync(cmd, [binaryName], {
+      encoding: "utf8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, PATH: augmented },
+    });
+    if (r.status !== 0) return null;
+    const line = (r.stdout || "").trim().split(/\r?\n/)[0]?.trim();
+    return line || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Attempt to install a CLI tool globally via npm.
+ * Returns true on success, false on failure.
+ */
+function tryNpmInstallGlobal(packageName) {
+  try {
+    const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+    const r = spawnSync(npmBin, ["install", "-g", packageName], {
+      encoding: "utf8",
+      timeout: 120_000,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a CLI binary is authenticated.
+ */
+function isCliAuthenticated(binaryPath, provider) {
+  if (provider === "claude") {
+    try {
+      const r = spawnSync(binaryPath, ["auth", "status"], {
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      return r.status === 0;
+    } catch {
+      return false;
+    }
+  }
+  if (provider === "gemini") {
+    // Gemini doesn't have a dedicated auth check — a successful --version
+    // is a reasonable proxy.
+    try {
+      const r = spawnSync(binaryPath, ["--version"], {
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      return r.status === 0;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+const PROVIDER_DOCS = {
+  codex: "https://github.com/openai/codex#login",
+  gemini: "https://github.com/google-gemini/gemini-cli",
+  claude: "https://docs.anthropic.com/en/docs/claude-code",
+};
+
+const PROVIDER_PACKAGES = {
+  gemini: "@google/gemini-cli",
+  claude: "@anthropic-ai/claude-code",
+};
+
+const PROVIDER_LABELS = {
+  codex: "Codex CLI",
+  gemini: "Gemini CLI",
+  claude: "Claude Code",
+};
+
+/**
+ * Provider-aware setup. Reads the saved provider from settings.json
+ * and ensures the correct backend is ready:
+ *   - codex  → existing wizard flow (binary + auth)
+ *   - gemini → detect on PATH → auto-install → fallback to docs
+ *   - claude → detect on PATH → auto-install → fallback to docs
+ */
+async function ensureProviderReady() {
+  const provider = readSavedProvider();
+
+  if (provider === "codex") {
+    return ensureCodexReady();
+  }
+
+  // Gemini / Claude setup
+  const binaryName = provider === "gemini" ? "gemini" : "claude";
+  let binPath = resolveCliOnPath(binaryName);
+
+  if (!binPath) {
+    // Attempt auto-install
+    const pkg = PROVIDER_PACKAGES[provider];
+    const label = PROVIDER_LABELS[provider];
+
+    const installed = tryNpmInstallGlobal(pkg);
+    if (installed) {
+      binPath = resolveCliOnPath(binaryName);
+    }
+
+    if (!binPath) {
+      // Auto-install failed — show docs link via a dialog
+      const { dialog: d, shell: s } = require("electron");
+      const result = d.showMessageBoxSync({
+        type: "warning",
+        title: `${label} — Not Found`,
+        message: `${label} could not be installed automatically.\n\nPlease install it manually and restart the app.`,
+        detail: installed
+          ? "The install completed but the binary was not found on PATH."
+          : `npm install -g ${pkg} failed. Check your Node.js and npm installation.`,
+        buttons: ["Open Install Guide", "Continue Anyway", "Quit"],
+        defaultId: 0,
+        cancelId: 2,
+      });
+      if (result === 0) {
+        s.openExternal(PROVIDER_DOCS[provider]).catch(() => {});
+      } else if (result === 2) {
+        return false;
+      }
+      // "Continue Anyway" — user may install later; the health banner
+      // will show "binary_missing" on first AI call.
+      return true;
+    }
+  }
+
+  // Check auth
+  const authenticated = isCliAuthenticated(binPath, provider);
+  if (!authenticated && provider === "claude") {
+    // Claude has a built-in login flow
+    try {
+      spawnSync(binPath, ["auth", "login"], {
+        encoding: "utf8",
+        timeout: 120_000,
+        stdio: "inherit",
+      });
+    } catch {
+      /* ignore — user can authenticate later */
+    }
+  }
+
+  return true;
+}
+
 async function ensureCodexReady() {
   ensureIpcHandlers();
   let status = refreshCodexStatus();
@@ -590,8 +779,10 @@ async function ensureCodexReady() {
 
 module.exports = {
   ensureCodexReady,
+  ensureProviderReady,
   showSetupWindow,
   resolveCodexBinary,
   refreshCodexStatus,
   onCodexStatusChange,
+  readSavedProvider,
 };
