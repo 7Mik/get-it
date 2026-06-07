@@ -1,6 +1,8 @@
 "use strict";
 
 const els = {
+  stepProvider: document.getElementById("step-provider"),
+  radiosProvider: document.querySelectorAll("input[name='provider']"),
   stepInstall: document.getElementById("step-install"),
   stepInstallMarker: document.getElementById("step-install-marker"),
   stepLogin: document.getElementById("step-login"),
@@ -21,31 +23,41 @@ const els = {
 };
 
 const BLURB_SIGNIN_ONLY =
-  "Sign in with the ChatGPT account you already use — that's the one Get It.'s agents run against. Your study data never leaves this Mac/PC.";
+  "Sign in to Codex CLI, or select a different provider. Your study data never leaves this Mac/PC.";
 const BLURB_INSTALL_AND_SIGNIN =
-  "We couldn't find Get It.'s bundled Codex CLI. Install a backup copy and sign in — your study data never leaves this Mac/PC.";
+  "Codex CLI needs to be installed, or you can select a different provider. Your study data never leaves this Mac/PC.";
 
 let lastAuthUrl = null;
 let lastPhase = "idle";
+let lastStatus = null;
+let selectedProvider = "codex";
+
+els.radiosProvider.forEach((r) => {
+  r.addEventListener("change", (e) => {
+    if (e.target.checked) {
+      selectedProvider = e.target.value;
+      render(lastStatus);
+    }
+  });
+});
 
 function render(s) {
   if (!s) return;
+  lastStatus = s;
   els.platformInfo.textContent = s.targetTriple
     ? `Platform: ${s.targetTriple}  ·  Required: ≥ ${s.requiredVersion}`
     : "";
 
-  // The bundled Codex binary ships inside the .app / installer for every
-  // user. The install step only surfaces on the rare path where the
-  // bundled copy is genuinely missing — antivirus quarantine, a partial
-  // install, or someone running `electron .` from source without first
-  // running `npm run electron:prepare`. The common path is one step:
-  // sign in.
+  const isCodex = selectedProvider === "codex";
   const codexReady = s.binaryFound && s.versionOk;
-  const showInstallStep = !codexReady;
+  const showInstallStep = !codexReady && isCodex;
+  const showLoginStep = isCodex;
 
   els.stepInstall.hidden = !showInstallStep;
-  els.stepInstallMarker.textContent = "1";
-  els.stepLoginMarker.textContent = showInstallStep ? "2" : "1";
+  els.stepLogin.hidden = !showLoginStep;
+  
+  els.stepInstallMarker.textContent = "2";
+  els.stepLoginMarker.textContent = showInstallStep ? "3" : "2";
   els.headerBlurb.textContent = showInstallStep
     ? BLURB_INSTALL_AND_SIGNIN
     : BLURB_SIGNIN_ONLY;
@@ -120,8 +132,8 @@ function render(s) {
     lastAuthUrl = null;
   }
 
-  // ── Finish button — only enabled when everything green
-  els.btnFinish.disabled = !(codexReady && s.loggedIn);
+  // ── Finish button — only enabled when everything green (or not codex)
+  els.btnFinish.disabled = isCodex ? !(codexReady && s.loggedIn) : false;
 
   lastPhase = s.phase ?? "idle";
 }
@@ -142,7 +154,7 @@ els.btnLogin.addEventListener("click", async () => {
   await window.wizard.login();
 });
 els.btnFinish.addEventListener("click", async () => {
-  await window.wizard.finish();
+  await window.wizard.finish({ provider: selectedProvider });
 });
 els.btnCancel.addEventListener("click", async () => {
   await window.wizard.cancel();

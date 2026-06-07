@@ -371,7 +371,22 @@ function ensureIpcHandlers() {
       await shell.openExternal(url).catch(() => {});
     }
   });
-  ipcMain.handle("wizard:finish", () => {
+  ipcMain.handle("wizard:finish", (_e, payload) => {
+    const override = payload && payload.provider;
+    if (override && override !== "codex") {
+      try {
+        const settingsPath = path.join(app.getPath("userData"), "settings.json");
+        let settings = { v: 2, autoGenerate: true, maxRetries: 3 };
+        if (fs.existsSync(settingsPath)) {
+          try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
+        }
+        settings.provider = override;
+        fs.writeFileSync(settingsPath, JSON.stringify(settings));
+      } catch (err) {}
+      closeWizardWindow(true);
+      return refreshCodexStatus();
+    }
+
     const status = refreshCodexStatus();
     if (status.binaryFound && status.versionOk && status.loggedIn) {
       closeWizardWindow(true);
@@ -772,6 +787,12 @@ async function ensureCodexReady() {
     return true;
   }
   const ok = await showSetupWindow({ reason: "first-run" });
+  
+  const newProvider = readSavedProvider();
+  if (newProvider !== "codex") {
+    return await ensureProviderReady();
+  }
+
   status = refreshCodexStatus();
   // Even if the wizard returned, only proceed if every gate is green.
   return ok && status.binaryFound && status.versionOk && status.loggedIn;

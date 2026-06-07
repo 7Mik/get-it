@@ -88,7 +88,7 @@ export async function runCliBinary(
 ): Promise<CliRunResult> {
   const timeout = opts?.timeoutMs ?? 120_000;
   try {
-    const { stdout, stderr } = await execFileAsync(binPath, args, {
+    const p = execFileAsync(binPath, args, {
       timeout,
       maxBuffer: 10 * 1024 * 1024, // 10 MB — model responses can be large
       encoding: "utf8",
@@ -97,8 +97,16 @@ export async function runCliBinary(
       env: {
         ...process.env,
         PATH: augmentedPath(),
+        GEMINI_CLI_TRUST_WORKSPACE: "true",
       },
     });
+
+    // Close stdin immediately so Claude doesn't wait 3s for input
+    if (p.child && p.child.stdin) {
+      p.child.stdin.end();
+    }
+
+    const { stdout, stderr } = await p;
     return { stdout, stderr, exitCode: 0 };
   } catch (err: unknown) {
     const e = err as {
@@ -124,11 +132,34 @@ export async function runCliBinary(
 
 /** Strip markdown code fences the model sometimes wraps JSON in, then parse. */
 export function parseJsonResponse<T>(raw: string): T {
-  const text = raw.trim();
+  let text = raw.trim();
   if (!text) throw new Error("Empty response from CLI");
-  const cleaned = text
+
+  // Attempt to strip standard markdown fences just in case
+  text = text
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/```$/i, "")
     .trim();
-  return JSON.parse(cleaned) as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    // If exact parsing fails (e.g. because of CLI warnings on stdout),
+    // try to extract the outermost JSON object
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        const extracted = text.substring(firstBrace, lastBrace + 1);
+        return JSON.parse(extracted) as T;
+      } catch (innerErr) {
+        throw new Error(
+          `Failed to parse extracted JSON: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`
+        );
+      }
+    }
+    throw new Error(
+      `Failed to parse JSON response: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 }

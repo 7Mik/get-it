@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld("wizard", {
   install: () => ipcRenderer.invoke("wizard:install"),
   login: () => ipcRenderer.invoke("wizard:login"),
   openUrl: (url) => ipcRenderer.invoke("wizard:open-url", url),
-  finish: () => ipcRenderer.invoke("wizard:finish"),
+  finish: (payload) => ipcRenderer.invoke("wizard:finish", payload),
   cancel: () => ipcRenderer.invoke("wizard:cancel"),
   onStatus: (cb) => {
     const wrapped = (_e, s) => cb(s);
