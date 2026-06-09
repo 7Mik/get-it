@@ -123,8 +123,9 @@ export default function CodexHealthBanner() {
       }
       return;
     }
-    // For Gemini/Claude or browser fallback, open docs
-    window.open(PROVIDER_DOCS[provider], "_blank");
+    // For Gemini/Claude or browser fallback, open settings
+    const event = new CustomEvent("getit:open-settings");
+    window.dispatchEvent(event);
   }, [provider]);
 
   const view = useMemo(() => {
@@ -162,7 +163,7 @@ export default function CodexHealthBanner() {
         ) : (
           <KeyRound className="h-3 w-3" />
         )}
-        {provider === "codex" ? "Re-connect" : "Install"}
+        {provider === "codex" ? "Re-connect" : "Configure in Settings"}
       </button>
     );
   } else if (view.kind === "rate_limit") {

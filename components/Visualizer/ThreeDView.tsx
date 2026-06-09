@@ -156,6 +156,34 @@ export default function ThreeDView({ spec, onRuntimeError }: Props) {
     };
     animate();
 
+    // Catch "silent" failures: setup_code that runs without throwing but
+    // never adds anything visible to the scene (e.g. objects added to a
+    // local variable instead of the provided `group`/`scene`). A scene with
+    // no renderable objects draws a blank canvas with no error — report it
+    // so the repair path can regenerate the spec.
+    const blankCheck = window.setTimeout(() => {
+      if (reportedRef.current) return;
+      let renderable = 0;
+      scene.traverse((obj) => {
+        const t = obj.type;
+        if (
+          t === "Mesh" ||
+          t === "Line" ||
+          t === "LineSegments" ||
+          t === "LineLoop" ||
+          t === "Points" ||
+          t === "Sprite"
+        ) {
+          renderable++;
+        }
+      });
+      if (renderable === 0) {
+        reportError(
+          "3D scene rendered nothing — the generated code added no visible objects.",
+        );
+      }
+    }, 900);
+
     const onResize = () => {
       const w = mount.clientWidth;
       const h = mount.clientHeight;
@@ -168,6 +196,7 @@ export default function ThreeDView({ spec, onRuntimeError }: Props) {
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(blankCheck);
       ro.disconnect();
       mount.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);

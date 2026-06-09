@@ -28,6 +28,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   Download,
+  RotateCcw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -106,6 +107,7 @@ type Props = {
   docId: string;
   mode: RightPaneMode;
   onModeChange: (m: RightPaneMode) => void;
+  providerLabel?: string;
   // Visualizer-only props (forwarded as-is from the orchestrator)
   visualizer: {
     spec: VizSpec | null;
@@ -114,10 +116,13 @@ type Props = {
     loadingDetail?: string;
     onRuntimeError?: (msg: string) => void;
     activeTagError?: string | null;
+    onRetry?: () => void;
+    failedCount?: number;
+    onRetryAllFailed?: () => void;
   };
 };
 
-export default function RightPane({ docId, mode, onModeChange, visualizer }: Props) {
+export default function RightPane({ docId, mode, onModeChange, providerLabel, visualizer }: Props) {
   return (
     <div className="flex h-full flex-col bg-white">
       <Header
@@ -135,11 +140,13 @@ export default function RightPane({ docId, mode, onModeChange, visualizer }: Pro
             emptyHint={visualizer.emptyHint}
             loadingDetail={visualizer.loadingDetail}
             onRuntimeError={visualizer.onRuntimeError}
+            providerLabel={providerLabel}
           />
         )}
         {mode === "graph" && (
           <KnowledgeGraphView
             docId={docId}
+            providerLabel={providerLabel}
             onJumpToTool={(tool, topic) => {
               onModeChange(tool);
               // Pre-fill is handled inside each tool via sessionStorage hint.
@@ -169,7 +176,30 @@ export default function RightPane({ docId, mode, onModeChange, visualizer }: Pro
       )}
       {mode === "visualizer" && visualizer.activeTagError && (
         <div className="shrink-0 border-t border-amber-200 bg-amber-50 px-5 py-3 text-[12px] text-amber-800">
-          {visualizer.activeTagError}
+          <p>{visualizer.activeTagError}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {visualizer.onRetry && (
+              <button
+                type="button"
+                onClick={visualizer.onRetry}
+                className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[12px] font-medium text-amber-800 hover:bg-amber-100"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Retry this graph
+              </button>
+            )}
+            {visualizer.onRetryAllFailed &&
+              (visualizer.failedCount ?? 0) > 1 && (
+                <button
+                  type="button"
+                  onClick={visualizer.onRetryAllFailed}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[12px] font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Retry all {visualizer.failedCount} failed graphs
+                </button>
+              )}
+          </div>
         </div>
       )}
     </div>
@@ -396,12 +426,14 @@ function VisualizerBody({
   emptyHint,
   loadingDetail,
   onRuntimeError,
+  providerLabel,
 }: {
   spec: VizSpec | null;
   loading: boolean;
   emptyHint?: string;
   loadingDetail?: string;
   onRuntimeError?: (msg: string) => void;
+  providerLabel?: string;
 }) {
   return (
     <AnimatePresence mode="wait">
@@ -419,7 +451,7 @@ function VisualizerBody({
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--ink-400)] [animation-delay:150ms]" />
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--ink-400)] [animation-delay:300ms]" />
             </div>
-            <p className="text-xs">codex is composing the visualization</p>
+            <p className="text-xs">{providerLabel ?? "Codex CLI"} is composing the visualization</p>
             {loadingDetail && <p className="text-[11px] text-[var(--ink-400)]">{loadingDetail}</p>}
           </div>
         </motion.div>

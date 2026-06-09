@@ -84,11 +84,34 @@ export default function TwoDAnimView({ spec, onRuntimeError }: Props) {
     };
     raf = requestAnimationFrame(tick);
 
+    // Catch "silent" failures: code that compiles and runs without throwing
+    // but paints nothing (e.g. a no-op draw, or geometry drawn off-canvas).
+    // After a generous warm-up, sample the canvas; an entirely transparent
+    // surface means nothing rendered — report it so the repair path kicks in.
+    const blankCheck = window.setTimeout(() => {
+      if (reportedRef.current) return;
+      try {
+        const cw = canvas.width;
+        const ch = canvas.height;
+        if (cw === 0 || ch === 0) return;
+        const { data } = ctx.getImageData(0, 0, cw, ch);
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] !== 0) return;
+        }
+        reportError(
+          "Animation rendered nothing — the generated code produced a blank canvas.",
+        );
+      } catch {
+        /* getImageData can throw on a tainted canvas; ignore */
+      }
+    }, 900);
+
     const ro = new ResizeObserver(resize);
     ro.observe(container);
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(blankCheck);
       ro.disconnect();
     };
     // onRuntimeError captured by closure; we don't want to remount on every

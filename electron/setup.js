@@ -50,6 +50,15 @@ const PLATFORM_PACKAGE_BY_TARGET = {
   "aarch64-pc-windows-msvc": "@openai/codex-win32-arm64",
 };
 
+const CLAUDE_PKG_BY_TARGET = {
+  "x86_64-unknown-linux-musl": "@anthropic-ai/claude-code-linux-x64",
+  "aarch64-unknown-linux-musl": "@anthropic-ai/claude-code-linux-arm64",
+  "x86_64-apple-darwin": "@anthropic-ai/claude-code-darwin-x64",
+  "aarch64-apple-darwin": "@anthropic-ai/claude-code-darwin-arm64",
+  "x86_64-pc-windows-msvc": "@anthropic-ai/claude-code-win32-x64",
+  "aarch64-pc-windows-msvc": "@anthropic-ai/claude-code-win32-arm64",
+};
+
 function targetTriple() {
   const { platform, arch } = process;
   if (platform === "linux" || platform === "android") {
@@ -161,6 +170,59 @@ function resolveCodexBinary() {
   if (userDataBin && fs.existsSync(userDataBin)) {
     return { path: userDataBin, source: "userdata" };
   }
+  return null;
+}
+
+function resolveBundledBinary(provider) {
+  const triple = targetTriple();
+  const isWin = process.platform === "win32";
+
+  const getSubPath = () => {
+    if (provider === "claude") {
+      return triple ? ["claude-bin", triple, "claude", isWin ? "claude.exe" : "claude"] : null;
+    }
+    return ["gemini-bin", "gemini-cli", "bundle", "gemini.js"];
+  };
+
+  const subPath = getSubPath();
+  if (!subPath) return null;
+
+  const out = [];
+  if (process.resourcesPath) {
+    out.push(
+      path.join(process.resourcesPath, "app.asar.unpacked", "electron", ...subPath),
+      path.join(process.resourcesPath, "electron", ...subPath)
+    );
+  }
+  out.push(path.join(app.getAppPath(), "electron", ...subPath));
+
+  for (const candidate of out) {
+    if (fs.existsSync(candidate)) {
+      maybeChmod(candidate);
+      return candidate;
+    }
+  }
+
+  if (provider === "claude") {
+    const pkg = triple ? CLAUDE_PKG_BY_TARGET[triple] : null;
+    if (pkg) {
+      for (const root of candidateNodeModulesRoots()) {
+        const candidate = path.join(root, pkg, isWin ? "claude.exe" : "claude");
+        if (fs.existsSync(candidate)) {
+          maybeChmod(candidate);
+          return candidate;
+        }
+      }
+    }
+  } else if (provider === "gemini") {
+    for (const root of candidateNodeModulesRoots()) {
+      const candidate = path.join(root, "@google", "gemini-cli", "bundle", "gemini.js");
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
   return null;
 }
 
@@ -381,6 +443,10 @@ function ensureIpcHandlers() {
           try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
         }
         settings.provider = override;
+        if (override === "gemini" && payload.geminiApiKey) {
+          settings.geminiApiKey = payload.geminiApiKey;
+          process.env.GEMINI_API_KEY = payload.geminiApiKey;
+        }
         fs.writeFileSync(settingsPath, JSON.stringify(settings));
       } catch (err) {}
       closeWizardWindow(true);
@@ -642,24 +708,7 @@ function resolveCliOnPath(binaryName) {
   }
 }
 
-/**
- * Attempt to install a CLI tool globally via npm.
- * Returns true on success, false on failure.
- */
-function tryNpmInstallGlobal(packageName) {
-  try {
-    const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
-    const r = spawnSync(npmBin, ["install", "-g", packageName], {
-      encoding: "utf8",
-      timeout: 120_000,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
+
 
 /**
  * Check if a CLI binary is authenticated.
@@ -713,8 +762,8 @@ const PROVIDER_LABELS = {
  * Provider-aware setup. Reads the saved provider from settings.json
  * and ensures the correct backend is ready:
  *   - codex  → existing wizard flow (binary + auth)
- *   - gemini → detect on PATH → auto-install → fallback to docs
- *   - claude → detect on PATH → auto-install → fallback to docs
+ *   - gemini → use bundled binary
+ *   - claude → use bundled binary
  */
 async function ensureProviderReady() {
   const provider = readSavedProvider();
@@ -723,58 +772,51 @@ async function ensureProviderReady() {
     return ensureCodexReady();
   }
 
-  // Gemini / Claude setup
-  const binaryName = provider === "gemini" ? "gemini" : "claude";
-  let binPath = resolveCliOnPath(binaryName);
+  const binPath = resolveBundledBinary(provider);
 
   if (!binPath) {
-    // Attempt auto-install
-    const pkg = PROVIDER_PACKAGES[provider];
     const label = PROVIDER_LABELS[provider];
-
-    const installed = tryNpmInstallGlobal(pkg);
-    if (installed) {
-      binPath = resolveCliOnPath(binaryName);
-    }
-
-    if (!binPath) {
-      // Auto-install failed — show docs link via a dialog
-      const { dialog: d, shell: s } = require("electron");
-      const result = d.showMessageBoxSync({
-        type: "warning",
-        title: `${label} — Not Found`,
-        message: `${label} could not be installed automatically.\n\nPlease install it manually and restart the app.`,
-        detail: installed
-          ? "The install completed but the binary was not found on PATH."
-          : `npm install -g ${pkg} failed. Check your Node.js and npm installation.`,
-        buttons: ["Open Install Guide", "Continue Anyway", "Quit"],
-        defaultId: 0,
-        cancelId: 2,
-      });
-      if (result === 0) {
-        s.openExternal(PROVIDER_DOCS[provider]).catch(() => {});
-      } else if (result === 2) {
-        return false;
-      }
-      // "Continue Anyway" — user may install later; the health banner
-      // will show "binary_missing" on first AI call.
-      return true;
-    }
+    const { dialog: d } = require("electron");
+    d.showMessageBoxSync({
+      type: "error",
+      title: `${label} — Not Found`,
+      message: `${label} could not be found. Your installation may be corrupted.`,
+      buttons: ["Quit"],
+    });
+    return false;
   }
 
   // Check auth
-  const authenticated = isCliAuthenticated(binPath, provider);
-  if (!authenticated && provider === "claude") {
-    // Claude has a built-in login flow
+  // Gemini uses API key from UI settings
+  // Claude has a built-in login flow
+  let authenticated = false;
+  if (provider === "claude") {
     try {
-      spawnSync(binPath, ["auth", "login"], {
+      const r = spawnSync(binPath, ["auth", "status"], {
         encoding: "utf8",
-        timeout: 120_000,
-        stdio: "inherit",
+        timeout: 5000,
       });
-    } catch {
-      /* ignore — user can authenticate later */
-    }
+      authenticated = r.status === 0;
+    } catch {}
+  } else if (provider === "gemini") {
+    try {
+      const settingsPath = path.join(app.getPath("userData"), "settings.json");
+      if (fs.existsSync(settingsPath)) {
+        const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+        if (raw.geminiApiKey) {
+          process.env.GEMINI_API_KEY = raw.geminiApiKey;
+          authenticated = true;
+        }
+      }
+    } catch {}
+  }
+
+  if (!authenticated && provider === "claude") {
+    // We will let the wizard UI handle claude login or they can login in terminal
+    // Wait, let's open the wizard for Claude or Gemini setup?
+    // Let's just return true for now and let the React UI guide them via Settings setup tab.
+    // The user requested: "The settings should include a setup tab that guides the user step by step to successfully configure the connection to the chosen CLI."
+    // So if not authenticated, they can configure it in the app.
   }
 
   return true;

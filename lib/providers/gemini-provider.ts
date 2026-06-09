@@ -11,6 +11,8 @@
  *   Uses native --resume <session-id> for session continuation.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { CODEX_SCRATCH_DIR } from "../paths";
 import type {
   AIProvider,
@@ -18,7 +20,45 @@ import type {
   RunJsonResult,
   RunJsonInThreadResult,
 } from "../provider-types";
-import { whichBinary, runCliBinary, parseJsonResponse } from "./cli-runner";
+import { whichBinary, runCliBinary, parseJsonResponse, resolveBundledBinary } from "./cli-runner";
+import { loadSettings } from "../settings-store";
+
+const GEMINI_TIMEOUT_MS = 600_000;
+
+function ensureGeminiProjectSettings(model: string): void {
+  try {
+    const dir = path.join(CODEX_SCRATCH_DIR, ".gemini");
+    const file = path.join(dir, "settings.json");
+    const desired = {
+      modelConfigs: {
+        overrides: [
+          {
+            match: { model },
+            modelConfig: {
+              generateContentConfig: {
+                maxOutputTokens: 65536,
+                thinkingConfig: { thinkingLevel: "LOW" },
+              },
+            },
+          },
+        ],
+      },
+    };
+    const json = JSON.stringify(desired, null, 2);
+    let current: string | null = null;
+    try {
+      current = fs.readFileSync(file, "utf8");
+    } catch {
+      current = null;
+    }
+    if (current !== json) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(file, json, "utf8");
+    }
+  } catch {
+    /* best-effort */
+  }
+}
 
 type GeminiJsonOutput = {
   response: string;
@@ -30,15 +70,25 @@ type GeminiJsonOutput = {
   };
 };
 
+function parseGeminiResult<T>(stdout: string): { data: T; usage: GeminiJsonOutput["stats"] | null } {
+  const raw = parseJsonResponse<GeminiJsonOutput>(stdout);
+  if (!raw.response || !raw.response.trim()) {
+    throw new Error(
+      "Gemini returned an empty response (the model's output was likely truncated before any answer was produced).",
+    );
+  }
+  return { data: parseJsonResponse<T>(raw.response), usage: raw.stats ?? null };
+}
+
 let _binaryPath: string | null | undefined;
 
 function resolveBinary(): string {
   if (_binaryPath === undefined) {
-    _binaryPath = whichBinary("gemini");
+    _binaryPath = resolveBundledBinary("gemini") || whichBinary("gemini");
   }
   if (!_binaryPath) {
     throw new Error(
-      "Gemini CLI not found on $PATH. Install it with: npm install -g @google/gemini-cli",
+      "Gemini CLI not found.",
     );
   }
   return _binaryPath;
@@ -62,16 +112,24 @@ export class GeminiProvider implements AIProvider {
     // Build the full prompt with schema instructions
     const fullPrompt = buildPromptWithSchema(prompt, outputSchema);
 
+    const settings = loadSettings();
+    const model = settings.geminiModel || "gemini-3.5-flash";
+    ensureGeminiProjectSettings(model);
+
     const args = [
-      "-p",
-      fullPrompt,
+      "--skip-trust",
       "--output-format",
       "json",
+      "--model",
+      model,
     ];
 
     const result = await runCliBinary(bin, args, {
       signal: opts.signal,
+      stdin: fullPrompt,
       cwd: CODEX_SCRATCH_DIR,
+      timeoutMs: GEMINI_TIMEOUT_MS,
+      env: settings.geminiApiKey ? { GEMINI_API_KEY: settings.geminiApiKey } : undefined,
     });
 
     if (result.exitCode !== 0) {
@@ -80,12 +138,11 @@ export class GeminiProvider implements AIProvider {
       );
     }
 
-    const raw = parseJsonResponse<GeminiJsonOutput>(result.stdout);
-    const innerData = parseJsonResponse<T>(raw.response);
+    const { data: innerData, usage } = parseGeminiResult<T>(result.stdout);
 
     return {
       data: innerData,
-      usage: raw.stats ?? null,
+      usage,
     };
   }
 
@@ -104,18 +161,26 @@ export class GeminiProvider implements AIProvider {
         args.resume.input,
         args.outputSchema,
       );
+      const settings = loadSettings();
+      const model = settings.geminiModel || "gemini-3.5-flash";
+      ensureGeminiProjectSettings(model);
+
       const cliArgs = [
+        "--skip-trust",
         "--resume",
         args.resume.threadId,
-        "-p",
-        fullPrompt,
         "--output-format",
         "json",
+        "--model",
+        model,
       ];
 
       const result = await runCliBinary(bin, cliArgs, {
         signal: opts.signal,
+        stdin: fullPrompt,
         cwd: CODEX_SCRATCH_DIR,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+        env: settings.geminiApiKey ? { GEMINI_API_KEY: settings.geminiApiKey } : undefined,
       });
 
       if (result.exitCode !== 0) {
@@ -126,12 +191,11 @@ export class GeminiProvider implements AIProvider {
         );
       }
 
-      const raw = parseJsonResponse<GeminiJsonOutput>(result.stdout);
-      const innerData = parseJsonResponse<T>(raw.response);
+      const { data: innerData, usage } = parseGeminiResult<T>(result.stdout);
 
       return {
         data: innerData,
-        usage: raw.stats ?? null,
+        usage,
         // Gemini doesn't return a new session ID on resume — keep the same one
         threadId: args.resume.threadId,
       };
@@ -144,16 +208,24 @@ export class GeminiProvider implements AIProvider {
       args.start.input,
       args.outputSchema,
     );
+    const settings = loadSettings();
+    const model = settings.geminiModel || "gemini-3.5-flash";
+    ensureGeminiProjectSettings(model);
+
     const cliArgs = [
-      "-p",
-      fullPrompt,
+      "--skip-trust",
       "--output-format",
       "json",
+      "--model",
+      model,
     ];
 
     const result = await runCliBinary(bin, cliArgs, {
       signal: opts.signal,
+      stdin: fullPrompt,
       cwd: CODEX_SCRATCH_DIR,
+      timeoutMs: GEMINI_TIMEOUT_MS,
+      env: settings.geminiApiKey ? { GEMINI_API_KEY: settings.geminiApiKey } : undefined,
     });
 
     if (result.exitCode !== 0) {
@@ -164,14 +236,13 @@ export class GeminiProvider implements AIProvider {
       );
     }
 
-    const raw = parseJsonResponse<GeminiJsonOutput>(result.stdout);
-    const innerData = parseJsonResponse<T>(raw.response);
+    const { data: innerData, usage } = parseGeminiResult<T>(result.stdout);
 
     // Gemini CLI doesn't expose a session_id in JSON output — use null
     // (the caller will fall back to start with full context on next turn)
     return {
       data: innerData,
-      usage: raw.stats ?? null,
+      usage,
       threadId: null,
     };
   }

@@ -32,6 +32,8 @@
     "build:desktop:all": "node scripts/build-electron.mjs --all"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.169",
+    "@google/gemini-cli": "^0.45.2",
     "@openai/codex-sdk": "^0.130.0",
     "@tailwindcss/typography": "^0.5.19",
     "clsx": "^2.1.1",

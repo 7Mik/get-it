@@ -21,7 +21,8 @@ import type {
   RunJsonResult,
   RunJsonInThreadResult,
 } from "../provider-types";
-import { whichBinary, runCliBinary, parseJsonResponse } from "./cli-runner";
+import { whichBinary, runCliBinary, parseJsonResponse, resolveBundledBinary } from "./cli-runner";
+import { loadSettings } from "../settings-store";
 
 type ClaudeJsonOutput = {
   type: string;
@@ -39,11 +40,11 @@ let _binaryPath: string | null | undefined;
 
 function resolveBinary(): string {
   if (_binaryPath === undefined) {
-    _binaryPath = whichBinary("claude");
+    _binaryPath = resolveBundledBinary("claude") || whichBinary("claude");
   }
   if (!_binaryPath) {
     throw new Error(
-      "Claude Code CLI not found on $PATH. Install it with: npm install -g @anthropic-ai/claude-code",
+      "Claude Code CLI not found.",
     );
   }
   return _binaryPath;
@@ -64,9 +65,14 @@ export class ClaudeProvider implements AIProvider {
   ): Promise<RunJsonResult<T>> {
     const bin = resolveBinary();
 
+    const settings = loadSettings();
+    const model = settings.claudeModel || "claude-3-7-sonnet-20250219";
+
     const args = [
       "-p",
       prompt,
+      "--model",
+      model,
       "--output-format",
       "json",
       "--bare",
@@ -114,12 +120,17 @@ export class ClaudeProvider implements AIProvider {
     const opts = args.opts ?? {};
 
     if (args.resume) {
+      const settings = loadSettings();
+      const model = settings.claudeModel || "claude-3-7-sonnet-20250219";
+
       // Use --resume <session-id> for thread continuation
       const cliArgs = [
         "--resume",
         args.resume.threadId,
         "-p",
         args.resume.input,
+        "--model",
+        model,
         "--output-format",
         "json",
         "--bare",
@@ -161,9 +172,14 @@ export class ClaudeProvider implements AIProvider {
     if (!args.start)
       throw new Error("runJsonInThread: provide `start` or `resume`");
 
+    const settings = loadSettings();
+    const model = settings.claudeModel || "claude-3-7-sonnet-20250219";
+
     const cliArgs = [
       "-p",
       args.start.input,
+      "--model",
+      model,
       "--output-format",
       "json",
       "--bare",

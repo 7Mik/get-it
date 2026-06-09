@@ -6,10 +6,13 @@
  * gemini-provider.ts and claude-provider.ts build on this.
  */
 
-import { execFile } from "node:child_process";
+import { execFile, spawnSync, type ExecFileOptionsWithStringEncoding } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+
+import fs from "node:fs";
+import path from "node:path";
 
 export type CliRunResult = {
   stdout: string;
@@ -22,7 +25,6 @@ export type CliRunResult = {
  * Uses `which` on macOS/Linux, `where.exe` on Windows.
  */
 export function whichBinary(name: string): string | null {
-  const { spawnSync } = require("node:child_process");
   const cmd = process.platform === "win32" ? "where.exe" : "which";
   try {
     const r = spawnSync(cmd, [name], {
@@ -70,6 +72,64 @@ function augmentedPath(): string {
 
 export { augmentedPath };
 
+export function getTargetTriple(): string | null {
+  const { platform, arch } = process;
+  if (platform === "linux" || platform === "android") {
+    if (arch === "x64") return "x86_64-unknown-linux-musl";
+    if (arch === "arm64") return "aarch64-unknown-linux-musl";
+  } else if (platform === "darwin") {
+    if (arch === "x64") return "x86_64-apple-darwin";
+    if (arch === "arm64") return "aarch64-apple-darwin";
+  } else if (platform === "win32") {
+    if (arch === "x64") return "x86_64-pc-windows-msvc";
+    if (arch === "arm64") return "aarch64-pc-windows-msvc";
+  }
+  return null;
+}
+
+export function resolveBundledBinary(provider: "claude" | "gemini"): string | null {
+  if (provider === "claude" && process.env.CLAUDE_BINARY_PATH && fs.existsSync(process.env.CLAUDE_BINARY_PATH)) {
+    return process.env.CLAUDE_BINARY_PATH;
+  }
+  if (provider === "gemini" && process.env.GEMINI_BINARY_PATH && fs.existsSync(process.env.GEMINI_BINARY_PATH)) {
+    return process.env.GEMINI_BINARY_PATH;
+  }
+
+  const triple = getTargetTriple();
+  const isWin = process.platform === "win32";
+
+  const getSubPath = () => {
+    if (provider === "claude") {
+      return triple ? ["claude-bin", triple, "claude", isWin ? "claude.exe" : "claude"] : null;
+    }
+    return ["gemini-bin", "gemini-cli", "bundle", "gemini.js"];
+  };
+
+  const subPath = getSubPath();
+  if (!subPath) return null;
+
+  // 1) Packaged Electron app: extraResources
+  const resourcesPath = (process as unknown as { resourcesPath?: string }).resourcesPath;
+  if (resourcesPath) {
+    const staged = path.join(resourcesPath, "app.asar.unpacked", "electron", ...subPath);
+    if (fs.existsSync(staged)) return staged;
+    const staged2 = path.join(resourcesPath, "electron", ...subPath);
+    if (fs.existsSync(staged2)) return staged2;
+  }
+
+  // 2) Source-tree fallback: scripts/electron-prepare.mjs stages
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, "electron", ...subPath);
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return null;
+}
+
 /**
  * Run a CLI binary with the given arguments and return structured output.
  *
@@ -84,11 +144,20 @@ export async function runCliBinary(
     signal?: AbortSignal;
     timeoutMs?: number;
     cwd?: string;
+    env?: Record<string, string | undefined>;
+    stdin?: string;
   },
 ): Promise<CliRunResult> {
   const timeout = opts?.timeoutMs ?? 120_000;
   try {
-    const p = execFileAsync(binPath, args, {
+    let finalBinPath = binPath;
+    const finalArgs = [...args];
+    if (binPath.endsWith(".js")) {
+      finalArgs.unshift(binPath);
+      finalBinPath = process.execPath;
+    }
+
+    const execOptions: ExecFileOptionsWithStringEncoding = {
       timeout,
       maxBuffer: 10 * 1024 * 1024, // 10 MB — model responses can be large
       encoding: "utf8",
@@ -98,11 +167,18 @@ export async function runCliBinary(
         ...process.env,
         PATH: augmentedPath(),
         GEMINI_CLI_TRUST_WORKSPACE: "true",
+        ELECTRON_RUN_AS_NODE: binPath.endsWith(".js") ? "1" : process.env.ELECTRON_RUN_AS_NODE,
+        ...(opts?.env || {}),
       },
-    });
+    };
 
-    // Close stdin immediately so Claude doesn't wait 3s for input
+    const p = execFileAsync(finalBinPath, finalArgs, execOptions);
+
+    // Close stdin immediately after writing (if provided) so Claude doesn't wait
     if (p.child && p.child.stdin) {
+      if (opts?.stdin) {
+        p.child.stdin.write(opts.stdin);
+      }
       p.child.stdin.end();
     }
 
@@ -130,6 +206,46 @@ export async function runCliBinary(
   }
 }
 
+/** Re-escape lone backslashes the model left as invalid JSON escape
+ *  sequences (e.g. a literal "\ " inside a long code string), while leaving
+ *  genuine escapes (\\, \", \n, \uXXXX, …) untouched. */
+function repairInvalidEscapes(text: string): string {
+  return text.replace(
+    /\\(["\\/bfnrtu]|u[0-9a-fA-F]{4})|\\([\s\S])/g,
+    (_m, valid: string | undefined, bad: string | undefined) =>
+      valid !== undefined ? "\\" + valid : "\\\\" + bad,
+  );
+}
+
+/** Best-effort completion of JSON that was truncated mid-output (the model
+ *  hit its token limit while emitting a long string value): close a dangling
+ *  string and any still-open objects/arrays so the partial object can parse.
+ *  Returns null when the text is not actually truncated. */
+function closeTruncatedJson(text: string): string | null {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "{" || c === "[") stack.push(c);
+    else if (c === "}" || c === "]") stack.pop();
+  }
+  if (!inString && stack.length === 0) return null;
+  let out = escaped ? text.slice(0, -1) : text;
+  if (inString) out += '"';
+  for (let i = stack.length - 1; i >= 0; i--) {
+    out += stack[i] === "{" ? "}" : "]";
+  }
+  return out;
+}
+
 /** Strip markdown code fences the model sometimes wraps JSON in, then parse. */
 export function parseJsonResponse<T>(raw: string): T {
   let text = raw.trim();
@@ -141,25 +257,34 @@ export function parseJsonResponse<T>(raw: string): T {
     .replace(/```$/i, "")
     .trim();
 
-  try {
-    return JSON.parse(text) as T;
-  } catch (err) {
-    // If exact parsing fails (e.g. because of CLI warnings on stdout),
-    // try to extract the outermost JSON object
-    const firstBrace = text.indexOf("{");
-    const lastBrace = text.lastIndexOf("}");
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+  const candidates = [text];
+  // If exact parsing fails (e.g. because of CLI warnings on stdout), also try
+  // the outermost {...} slice.
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    candidates.push(text.substring(firstBrace, lastBrace + 1));
+  }
+
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    // Try the raw candidate first, then a copy with invalid escapes repaired
+    // (gemini-3.5-flash sometimes emits stray backslashes in long code strings),
+    // then a copy completed if the output was truncated mid-string.
+    const repaired = repairInvalidEscapes(candidate);
+    const variants = [candidate, repaired];
+    const completed = closeTruncatedJson(repaired);
+    if (completed) variants.push(completed);
+    for (const variant of variants) {
       try {
-        const extracted = text.substring(firstBrace, lastBrace + 1);
-        return JSON.parse(extracted) as T;
-      } catch (innerErr) {
-        throw new Error(
-          `Failed to parse extracted JSON: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`
-        );
+        return JSON.parse(variant) as T;
+      } catch (err) {
+        lastError = err;
       }
     }
-    throw new Error(
-      `Failed to parse JSON response: ${err instanceof Error ? err.message : String(err)}`
-    );
   }
+
+  throw new Error(
+    `Failed to parse JSON response: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+  );
 }

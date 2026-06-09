@@ -32,9 +32,14 @@ export type SettingsPayload = {
   provider: ProviderName;
   autoGenerate: boolean;
   maxRetries: number;
+  geminiApiKey?: string;
+  geminiModel?: string;
+  claudeModel?: string;
 };
 
 export const SETTINGS_EVENT = "getit:settings";
+
+type TabName = "general" | "setup" | "models";
 
 export default function SettingsButton() {
   const [open, setOpen] = useState(false);
@@ -92,9 +97,14 @@ export default function SettingsButton() {
 }
 
 function SettingsPanel({ refreshKey }: { refreshKey: string }) {
+  const [tab, setTab] = useState<TabName>("general");
   const [provider, setProvider] = useState<ProviderName>("codex");
   const [autoGenerate, setAutoGenerate] = useState<boolean>(AUTO_GENERATE_VIZ);
   const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
+  const [geminiApiKey, setGeminiApiKey] = useState<string>("");
+  const [needGeminiKey, setNeedGeminiKey] = useState<boolean>(false);
+  const [geminiModel, setGeminiModel] = useState<string>("gemini-2.5-pro");
+  const [claudeModel, setClaudeModel] = useState<string>("claude-3-7-sonnet-20250219");
   const hydratedRef = useRef(false);
 
   // Fetch fresh on every popover open so external changes (CLI edits,
@@ -111,6 +121,9 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
           setProvider(s.provider);
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
         if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
+        if (typeof s.geminiApiKey === "string") setGeminiApiKey(s.geminiApiKey);
+        if (typeof s.geminiModel === "string") setGeminiModel(s.geminiModel);
+        if (typeof s.claudeModel === "string") setClaudeModel(s.claudeModel);
         hydratedRef.current = true;
       })
       .catch(() => {
@@ -147,8 +160,14 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
     (v: ProviderName) => {
       setProvider(v);
       persist({ provider: v });
+      if (v === "gemini" && !geminiApiKey.trim()) {
+        setNeedGeminiKey(true);
+        setTab("setup");
+      } else {
+        setNeedGeminiKey(false);
+      }
     },
-    [persist],
+    [persist, geminiApiKey],
   );
 
   const onAutoGenerate = useCallback(
@@ -167,6 +186,22 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
     },
     [persist],
   );
+
+  const onGeminiApiKey = useCallback((v: string) => {
+    setGeminiApiKey(v);
+    persist({ geminiApiKey: v });
+    if (v.trim()) setNeedGeminiKey(false);
+  }, [persist]);
+
+  const onGeminiModel = useCallback((v: string) => {
+    setGeminiModel(v);
+    persist({ geminiModel: v });
+  }, [persist]);
+
+  const onClaudeModel = useCallback((v: string) => {
+    setClaudeModel(v);
+    persist({ claudeModel: v });
+  }, [persist]);
 
   return (
     <>
@@ -187,85 +222,201 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         </p>
       </div>
 
-      {/* AI Provider selector */}
-      <div className="border-b border-[var(--border-subtle)] px-3 py-2.5">
-        <p className="mb-1.5 text-[12.5px] font-medium text-[var(--ink-900)]">
-          AI Provider
-        </p>
-        <div className="flex gap-1 rounded-lg bg-[var(--surface-sunken)] p-0.5">
-          {PROVIDER_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onProvider(opt.value)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-all ${
-                provider === opt.value
-                  ? "bg-white text-[var(--ink-900)] shadow-sm ring-1 ring-[var(--border-subtle)]"
-                  : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1 text-[10.5px] text-[var(--ink-400)]">
-          {PROVIDER_OPTIONS.find((o) => o.value === provider)?.note}
-        </p>
-      </div>
-
-      {/* Auto-generate toggle */}
-      <div className="flex items-start gap-2.5 px-3 py-2.5">
+      <div className="flex border-b border-[var(--border-subtle)] px-3 pt-2 gap-4 text-[12px]">
         <button
-          type="button"
-          role="switch"
-          aria-checked={autoGenerate}
-          onClick={() => onAutoGenerate(!autoGenerate)}
-          className={`mt-0.5 inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
-            autoGenerate
-              ? "bg-[var(--accent-600)]"
-              : "bg-[var(--surface-sunken)] ring-1 ring-inset ring-[var(--border-default)]"
-          }`}
+          className={`pb-2 ${tab === "general" ? "font-semibold text-[var(--ink-900)] border-b-2 border-[var(--ink-900)]" : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"}`}
+          onClick={() => setTab("general")}
         >
-          <span
-            className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${
-              autoGenerate ? "translate-x-3.5" : "translate-x-0.5"
-            }`}
-          />
+          General
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
-            Auto-generate visualizations
-          </p>
-          <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
-            {autoGenerate
-              ? "Every detected tag fires its viz generation in parallel."
-              : "Tags appear after detection but only render on click."}
-          </p>
-        </div>
+        <button
+          className={`pb-2 ${tab === "setup" ? "font-semibold text-[var(--ink-900)] border-b-2 border-[var(--ink-900)]" : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"}`}
+          onClick={() => setTab("setup")}
+        >
+          Setup
+        </button>
+        <button
+          className={`pb-2 ${tab === "models" ? "font-semibold text-[var(--ink-900)] border-b-2 border-[var(--ink-900)]" : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"}`}
+          onClick={() => setTab("models")}
+        >
+          Models
+        </button>
       </div>
 
-      {/* Max retries number input */}
-      <div className="flex items-start gap-2.5 border-t border-[var(--border-subtle)] px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
-            Max viz repair attempts
-          </p>
-          <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
-            Extra calls after a runtime error. Total attempts per tag = 1 + this.
-          </p>
-        </div>
-        <input
-          type="number"
-          min={0}
-          max={10}
-          step={1}
-          value={maxRetries}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (Number.isFinite(n) && n >= 0) onMaxRetries(n);
-          }}
-          className="h-7 w-14 shrink-0 rounded-md border border-[var(--border-subtle)] bg-white px-2 text-right text-[12.5px] font-medium tabular-nums text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
-        />
+      <div className="p-1 min-h-[160px]">
+        {tab === "general" && (
+          <>
+            {/* AI Provider selector */}
+            <div className="border-b border-[var(--border-subtle)] px-2 py-2.5">
+              <p className="mb-1.5 text-[12.5px] font-medium text-[var(--ink-900)]">
+                AI Provider
+              </p>
+              <div className="flex gap-1 rounded-lg bg-[var(--surface-sunken)] p-0.5">
+                {PROVIDER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onProvider(opt.value)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-all ${
+                      provider === opt.value
+                        ? "bg-white text-[var(--ink-900)] shadow-sm ring-1 ring-[var(--border-subtle)]"
+                        : "text-[var(--ink-500)] hover:text-[var(--ink-700)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10.5px] text-[var(--ink-400)]">
+                {PROVIDER_OPTIONS.find((o) => o.value === provider)?.note}
+              </p>
+            </div>
+
+            {/* Auto-generate toggle */}
+            <div className="flex items-start gap-2.5 px-2 py-2.5">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoGenerate}
+                onClick={() => onAutoGenerate(!autoGenerate)}
+                className={`mt-0.5 inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                  autoGenerate
+                    ? "bg-[var(--accent-600)]"
+                    : "bg-[var(--surface-sunken)] ring-1 ring-inset ring-[var(--border-default)]"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${
+                    autoGenerate ? "translate-x-3.5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
+                  Auto-generate visualizations
+                </p>
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  {autoGenerate
+                    ? "Every detected tag fires its viz generation in parallel."
+                    : "Tags appear after detection but only render on click."}
+                </p>
+              </div>
+            </div>
+
+            {/* Max retries number input */}
+            <div className="flex items-start gap-2.5 border-t border-[var(--border-subtle)] px-2 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
+                  Max viz repair attempts
+                </p>
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  Extra calls after a runtime error. Total attempts per tag = 1 + this.
+                </p>
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                step={1}
+                value={maxRetries}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n) && n >= 0) onMaxRetries(n);
+                }}
+                className="h-7 w-14 shrink-0 rounded-md border border-[var(--border-subtle)] bg-white px-2 text-right text-[12.5px] font-medium tabular-nums text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+              />
+            </div>
+          </>
+        )}
+
+        {tab === "setup" && (
+          <div className="px-2 py-2.5">
+            <p className="mb-2 text-[12.5px] font-medium text-[var(--ink-900)]">
+              {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label} Setup
+            </p>
+            {provider === "codex" && (
+              <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                The Codex CLI manages its own authentication via browser login. 
+                If you encounter connection issues, you can restart the app to launch the setup wizard again.
+              </p>
+            )}
+            {provider === "gemini" && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  Provide your Google Gemini API Key to authorize the CLI.
+                </p>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={geminiApiKey}
+                  onChange={(e) => onGeminiApiKey(e.target.value)}
+                  autoFocus={needGeminiKey}
+                  className={`w-full rounded-md border bg-white px-2.5 py-1.5 text-[12px] text-[var(--ink-900)] focus:outline-none ${needGeminiKey ? "border-[var(--danger-500,#dc2626)] focus:border-[var(--danger-500,#dc2626)]" : "border-[var(--border-subtle)] focus:border-[var(--accent-500)]"}`}
+                />
+                {needGeminiKey && (
+                  <p className="text-[11px] leading-relaxed text-[var(--danger-500,#dc2626)]">
+                    A Gemini API key is required to use the Gemini CLI. Please paste it above.
+                  </p>
+                )}
+              </div>
+            )}
+            {provider === "claude" && (
+              <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                Claude Code uses a terminal-based login. To authenticate, please open a terminal and run:<br />
+                <code className="mt-1 block rounded bg-[var(--surface-sunken)] p-1">claude auth login</code>
+                <br />
+                Once authenticated, requests will automatically succeed.
+              </p>
+            )}
+          </div>
+        )}
+
+        {tab === "models" && (
+          <div className="px-2 py-2.5">
+            <p className="mb-2 text-[12.5px] font-medium text-[var(--ink-900)]">
+              Model Selection
+            </p>
+            {provider === "codex" && (
+              <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                Codex automatically selects the best available model for your task based on your ChatGPT plan.
+              </p>
+            )}
+            {provider === "gemini" && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  Select a Gemini model to use:
+                </p>
+                <select
+                  value={geminiModel}
+                  onChange={(e) => onGeminiModel(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                >
+                  <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                  <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                </select>
+              </div>
+            )}
+            {provider === "claude" && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  Select a Claude model to use:
+                </p>
+                <select
+                  value={claudeModel}
+                  onChange={(e) => onClaudeModel(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                >
+                  <option value="claude-3-7-sonnet-20250219">claude-3-7-sonnet</option>
+                  <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                  <option value="claude-3-opus-20240229">claude-3-opus</option>
+                  <option value="claude-3-5-haiku-20241022">claude-3-5-haiku</option>
+                </select>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

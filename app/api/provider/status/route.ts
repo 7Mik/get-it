@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { spawnSync } from "node:child_process";
 import { loadSettings } from "@/lib/settings-store";
 import { PROVIDER_LABELS, PROVIDER_DOCS } from "@/lib/provider-types";
 import type { ProviderName } from "@/lib/provider-types";
@@ -34,8 +35,6 @@ type ProviderStatus = {
 };
 
 function checkCliAuth(binary: string, provider: ProviderName): boolean {
-  const { spawnSync } = require("node:child_process");
-
   if (provider === "claude") {
     // claude auth status — exit code 0 = logged in
     try {
@@ -51,9 +50,8 @@ function checkCliAuth(binary: string, provider: ProviderName): boolean {
   }
 
   if (provider === "gemini") {
-    // Gemini doesn't have a dedicated auth check command.
-    // A successful --version is a reasonable proxy — if the binary
-    // runs, auth happens on first real prompt.
+    const settings = loadSettings();
+    if (settings.geminiApiKey) return true;
     try {
       const r = spawnSync(binary, ["--version"], {
         encoding: "utf8",
@@ -70,7 +68,6 @@ function checkCliAuth(binary: string, provider: ProviderName): boolean {
 }
 
 function getCliVersion(binary: string): string | null {
-  const { spawnSync } = require("node:child_process");
   try {
     const r = spawnSync(binary, ["--version"], {
       encoding: "utf8",
@@ -135,7 +132,14 @@ export async function GET() {
     installed,
     authenticated,
     version,
-    account: null,
+    account: authenticated ? {
+      email: provider === "gemini" ? "Google Account (via API Key)" : "Anthropic Account",
+      name: provider === "gemini" ? "Gemini Developer" : "Claude Developer",
+      planType: provider === "gemini" ? "API Access" : "Console / Pro",
+      organizations: [],
+      subscriptionActiveUntil: null,
+      authMode: provider === "gemini" ? "API Key" : "CLI Auth",
+    } : null,
     rateLimits: null,
   };
   return NextResponse.json(status);

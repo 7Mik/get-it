@@ -179,22 +179,20 @@ function AccountPanel({ refreshKey }: { refreshKey: string }) {
         <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-500)]">
           {data?.label ?? "AI Provider"} account
         </p>
-        {isCodex && (
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut || (!data?.account && !err)}
-            title="Sign out of Codex and return to the setup wizard"
-            className="inline-flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-white px-2 py-0.5 text-[10.5px] font-medium text-[var(--ink-700)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-          >
-            {loggingOut ? (
-              <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-            ) : (
-              <LogOut className="h-2.5 w-2.5" />
-            )}
-            {loggingOut ? "signing out…" : "Sign out"}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut || (!data?.account && !err) || data?.provider !== "codex"}
+          title={data?.provider === "codex" ? "Sign out of Codex and return to the setup wizard" : "Change settings in the Settings menu"}
+          className={`inline-flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-white px-2 py-0.5 text-[10.5px] font-medium text-[var(--ink-700)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 ${data?.provider !== "codex" ? "invisible" : ""}`}
+        >
+          {loggingOut ? (
+            <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+          ) : (
+            <LogOut className="h-2.5 w-2.5" />
+          )}
+          {loggingOut ? "signing out…" : "Sign out"}
+        </button>
       </div>
 
       {loading && (
@@ -208,8 +206,8 @@ function AccountPanel({ refreshKey }: { refreshKey: string }) {
         <p className="mt-1.5 text-[11px] text-[var(--ink-400)]">No data.</p>
       )}
 
-      {/* ── Codex: Full account panel ── */}
-      {!loading && data && isCodex && (
+      {/* ── Standardized Account Panel ── */}
+      {!loading && data && (
         <>
           {data.account ? (
             <div className="mt-1.5 flex items-center gap-2">
@@ -234,51 +232,34 @@ function AccountPanel({ refreshKey }: { refreshKey: string }) {
               </div>
             </div>
           ) : (
-            <p className="mt-1.5 text-[11px] text-[var(--ink-400)]">
-              Not authenticated.
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--surface-sunken)] text-[var(--ink-500)]">
+                <XCircle className="h-3.5 w-3.5 text-rose-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
+                  {data.label}
+                </p>
+                <p className="text-[10.5px] text-[var(--ink-500)]">
+                  Not authenticated
+                  {data.version ? ` · v${data.version}` : ""}
+                </p>
+              </div>
+            </div>
           )}
 
           {data.rateLimits ? (
-            <div className="mt-2 space-y-1.5">
+            <div className="mt-4 space-y-1.5">
               <LimitRow label="5h limit" win={data.rateLimits.primary} />
               <LimitRow label="Weekly limit" win={data.rateLimits.secondary} />
             </div>
-          ) : (
-            <p className="mt-2 text-[10.5px] text-[var(--ink-400)]">
-              Usage limits unavailable.
-            </p>
-          )}
-        </>
-      )}
-
-      {/* ── Gemini / Claude: Stub account panel ── */}
-      {!loading && data && !isCodex && (
-        <>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--surface-sunken)] text-[var(--ink-500)]">
-              {data.authenticated ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <XCircle className="h-3.5 w-3.5 text-rose-500" />
-              )}
+          ) : data.account ? (
+            <div className="mt-4 text-[10.5px] text-[var(--ink-400)]">
+              Usage limits unavailable or unlimited.
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[12.5px] font-medium text-[var(--ink-900)]">
-                {data.label}
-              </p>
-              <p className="text-[10.5px] text-[var(--ink-500)]">
-                {data.installed
-                  ? data.authenticated
-                    ? "Connected"
-                    : "Installed but not authenticated"
-                  : "Not installed"}
-                {data.version ? ` · v${data.version}` : ""}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-2.5 flex items-center gap-2">
+          ) : null}
+          
+          <div className="mt-4 flex items-center gap-2">
             <a
               href={data.docsUrl}
               target="_blank"
@@ -291,7 +272,6 @@ function AccountPanel({ refreshKey }: { refreshKey: string }) {
             <button
               type="button"
               onClick={() => {
-                // Focus the settings button to switch provider
                 const event = new CustomEvent("getit:open-settings");
                 window.dispatchEvent(event);
               }}

@@ -11,6 +11,7 @@ import {
   BookOpen,
   Tag as TagIcon,
   Network,
+  Copy,
 } from "lucide-react";
 
 import PdfViewer, { type Tag } from "@/components/PdfViewer";
@@ -19,7 +20,8 @@ import AccountButton from "@/components/AccountButton";
 import SettingsButton, { SETTINGS_EVENT } from "@/components/SettingsButton";
 import TooltipChip from "@/components/TooltipChip";
 import type { DetectedConcept, VizSpec } from "@/lib/schemas";
-import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
+import { AUTO_GENERATE_VIZ } from "@/lib/config";
+import { PROVIDER_LABELS, type ProviderName } from "@/lib/provider-types";
 
 type DocMeta = {
   docId: string;
@@ -48,6 +50,7 @@ type TagsApiResponse = {
   } | null;
   detectionRunning: boolean;
   vizQueueRunning: boolean;
+  detectionError?: string;
   numPages: number;
 };
 
@@ -73,6 +76,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
   const [pagesAnalyzed, setPagesAnalyzed] = useState<Set<number>>(new Set());
   const [detectionRunning, setDetectionRunning] = useState(false);
   const [vizQueueRunning, setVizQueueRunning] = useState(false);
+  const [detectionError, setDetectionError] = useState<string | undefined>();
 
   const [activeTagId, setActiveTagId] = useState<string | null>(null);
 
@@ -80,16 +84,17 @@ export default function ViewerClient({ docId }: { docId: string }) {
   // defaults, hydrate from /api/settings, react to `getit:settings`
   // CustomEvents the SettingsButton fires.
   const [autoGenerate, setAutoGenerate] = useState<boolean>(AUTO_GENERATE_VIZ);
-  const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
+  const [provider, setProvider] = useState<ProviderName>("codex");
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/settings", { cache: "no-store" })
       .then((r) => r.json())
-      .then((s: { autoGenerate: boolean; maxRetries: number }) => {
+      .then((s: { autoGenerate: boolean; maxRetries: number; provider?: ProviderName }) => {
         if (cancelled) return;
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
-        if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
+        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude")
+          setProvider(s.provider);
       })
       .catch(() => {});
     return () => {
@@ -100,11 +105,12 @@ export default function ViewerClient({ docId }: { docId: string }) {
   useEffect(() => {
     const onChange = (e: Event) => {
       const detail = (e as CustomEvent).detail as
-        | { autoGenerate?: boolean; maxRetries?: number }
+        | { autoGenerate?: boolean; maxRetries?: number; provider?: ProviderName }
         | undefined;
       if (!detail) return;
       if (typeof detail.autoGenerate === "boolean") setAutoGenerate(detail.autoGenerate);
-      if (typeof detail.maxRetries === "number") setMaxRetries(detail.maxRetries);
+      if (detail.provider === "codex" || detail.provider === "gemini" || detail.provider === "claude")
+        setProvider(detail.provider);
     };
     window.addEventListener(SETTINGS_EVENT, onChange);
     return () => window.removeEventListener(SETTINGS_EVENT, onChange);
@@ -230,6 +236,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
         if (cancelled) return;
         setDetectionRunning(data.detectionRunning);
         setVizQueueRunning(data.vizQueueRunning);
+        setDetectionError(data.detectionError);
         const file = data.file;
         if (!file) {
           // Tags file doesn't exist yet — leave local state empty.
@@ -316,18 +323,19 @@ export default function ViewerClient({ docId }: { docId: string }) {
     [docId, tags],
   );
 
-  // Visualizer reported a runtime error → ask the server to repair.
+  // Visualizer reported a runtime error → single-attempt policy: surface the
+  // error so the user can refresh the graph manually (no auto-repair retry).
   const handleRuntimeError = useCallback(
     (tagId: string, message: string) => {
-      // Optimistic flip so the loader appears while the server queues
-      // the repair attempt.
+      // Optimistic flip so the failure is shown immediately.
       setTags((prev) =>
         prev.map((t) =>
           t.id === tagId
             ? {
                 ...t,
                 ready: false,
-                generating: true,
+                generating: false,
+                error: message,
                 lastRuntimeError: message,
               }
             : t,
@@ -341,6 +349,43 @@ export default function ViewerClient({ docId }: { docId: string }) {
     },
     [docId],
   );
+
+  // User asked to retry a single failed graph → clear the terminal error
+  // and re-queue just that tag.
+  const handleRetryTag = useCallback(
+    (tagId: string) => {
+      setTags((prev) =>
+        prev.map((t) =>
+          t.id === tagId
+            ? { ...t, ready: false, generating: true, error: undefined }
+            : t,
+        ),
+      );
+      void fetch(`/api/jobs/viz/${docId}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tagId }),
+      }).catch(() => {});
+    },
+    [docId],
+  );
+
+  // User asked to retry every failed graph at once → re-queue only the
+  // tags currently in an error state, leaving working ones untouched.
+  const handleRetryFailed = useCallback(() => {
+    setTags((prev) =>
+      prev.map((t) =>
+        t.error
+          ? { ...t, ready: false, generating: true, error: undefined }
+          : t,
+      ),
+    );
+    void fetch(`/api/jobs/viz/${docId}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ retryFailed: true }),
+    }).catch(() => {});
+  }, [docId]);
 
   // When auto-generate flips off → on mid-session, ask the server to
   // queue every still-idle tag so the right pane fills in without the
@@ -441,6 +486,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
             tagsReady={tagReadyCount}
             tagsTotal={tags.length}
             generating={tagGeneratingCount > 0}
+            error={detectionError}
           />
           <SettingsButton />
           <AccountButton />
@@ -457,6 +503,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
             activeTagId={activeTagId}
             onTagClick={handleTagClick}
             detecting={detecting}
+            providerLabel={PROVIDER_LABELS[provider]}
           />
         </div>
         <div className="flex w-[44%] min-w-[420px] max-w-[720px] flex-col overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-white">
@@ -464,27 +511,31 @@ export default function ViewerClient({ docId }: { docId: string }) {
             docId={docId}
             mode={rightPaneMode}
             onModeChange={setRightPaneMode}
+            providerLabel={PROVIDER_LABELS[provider]}
             visualizer={{
               spec: activeTag?.generating || activeTag?.error ? null : activeSpec,
               loading:
                 activeTag != null &&
                 !activeTag.error &&
                 (activeTag.generating || !activeTag.spec),
-              loadingDetail:
-                activeTag?.generating && (activeTag.attempts ?? 0) >= 1
-                  ? `repairing — attempt ${(activeTag.attempts ?? 0) + 1} of ${maxRetries + 1}`
-                  : undefined,
+              loadingDetail: undefined,
               onRuntimeError: activeTag
                 ? (msg) => handleRuntimeError(activeTag.id, msg)
                 : undefined,
               emptyHint: activeTag?.error
                 ? "We weren't able to build a working visualization for this concept. Pick another tag — most of them work cleanly."
                 : tags.length === 0
-                  ? "codex is reading the document — tags will appear inline as soon as they're detected."
+                  ? `${PROVIDER_LABELS[provider]} is reading the document — tags will appear inline as soon as they're detected.`
                   : autoGenerate
                     ? "Click any colored tag in the document to render its concept here."
                     : "Click any tag to generate its visualization. (manual mode — toggle auto-generate in settings)",
               activeTagError: activeTag?.error ?? null,
+              onRetry:
+                activeTag?.error != null
+                  ? () => handleRetryTag(activeTag.id)
+                  : undefined,
+              failedCount: tags.filter((t) => t.error).length,
+              onRetryAllFailed: handleRetryFailed,
             }}
           />
         </div>
@@ -508,6 +559,7 @@ function TagsChip({
   tagsReady,
   tagsTotal,
   generating,
+  error,
 }: {
   pagesDone: number;
   pagesTotal: number;
@@ -515,21 +567,26 @@ function TagsChip({
   tagsReady: number;
   tagsTotal: number;
   generating: boolean;
+  error?: string;
 }) {
   const detectionDone = pagesTotal > 0 && pagesDone >= pagesTotal;
   const spinning = detectionDone ? generating : detecting;
-  const tip = detectionDone
-    ? "Visualization agent — concept detection done; each tag spins up a per-concept renderer (3D, animation, formula, graph, source)."
-    : "Visualization agent — scanning each page for the concepts worth tagging.";
+  const tip = error 
+    ? `Detection error: ${error}`
+    : detectionDone
+      ? "Visualization agent — concept detection done; each tag spins up a per-concept renderer (3D, animation, formula, graph, source)."
+      : "Visualization agent — scanning each page for the concepts worth tagging.";
   return (
     <span className="viz-tooltip-anchor relative inline-flex">
-      <div className="flex items-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1 text-[11px]">
+      <div className={`flex items-center gap-1.5 rounded-md border bg-white px-2 py-1 text-[11px] ${error ? "border-rose-300" : "border-[var(--border-subtle)]"}`}>
         {spinning ? (
           <RefreshCw className="h-3 w-3 animate-spin text-[var(--accent-600)]" />
+        ) : error ? (
+          <AlertCircle className="h-3 w-3 text-rose-500" />
         ) : (
           <TagIcon className="h-3 w-3 text-[var(--ink-400)]" />
         )}
-        {!detectionDone ? (
+        {!detectionDone && !error ? (
           <>
             <span className="tabular-nums font-medium text-[var(--ink-900)]">
               {pagesDone}
@@ -537,6 +594,8 @@ function TagsChip({
             </span>
             <span className="text-[var(--ink-500)]">pages</span>
           </>
+        ) : error ? (
+          <span className="font-medium text-rose-700">Failed</span>
         ) : (
           <>
             <span className="tabular-nums font-medium text-[var(--ink-900)]">
@@ -651,9 +710,28 @@ function KGStatusBadge({ docId }: { docId: string }) {
         <span className={tone}>{label.split(" ").slice(1).join(" ")}</span>
       </div>
       <span className="viz-tooltip" role="tooltip">
-        Knowledge-graph agent —{" "}
-        {title ||
-          "tracks per-concept mastery from your chats, flashcards, quizzes and Feynman sessions."}
+        <div className="flex items-start justify-between gap-2">
+          <span>
+            Knowledge-graph agent —{" "}
+            {title ||
+              "tracks per-concept mastery from your chats, flashcards, quizzes and Feynman sessions."}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const textToCopy = state.status === "error" && state.buildError
+                ? state.buildError
+                : `Knowledge-graph agent - ${
+                    title || "tracks per-concept mastery from your chats, flashcards, quizzes and Feynman sessions."
+                  }`;
+              navigator.clipboard.writeText(textToCopy);
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-colors text-[var(--ink-500)] hover:text-[var(--ink-900)] shrink-0"
+            title="Copy message"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
+        </div>
       </span>
     </span>
   );

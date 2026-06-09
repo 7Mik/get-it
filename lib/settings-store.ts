@@ -23,6 +23,9 @@ export type AppSettings = {
   provider: ProviderName;
   autoGenerate: boolean;
   maxRetries: number;
+  geminiApiKey?: string;
+  geminiModel?: string;
+  claudeModel?: string;
 };
 
 const VERSION = 2 as const;
@@ -40,6 +43,8 @@ function defaultsFromEnv(): AppSettings {
     provider: DEFAULT_PROVIDER,
     autoGenerate: AUTO_GENERATE_VIZ,
     maxRetries: MAX_VIZ_GEN_RETRIES,
+    geminiModel: "gemini-3.5-flash",
+    claudeModel: "claude-3-7-sonnet-20250219",
   };
 }
 
@@ -65,6 +70,9 @@ export function loadSettings(): AppSettings {
           typeof parsed.maxRetries === "number" && parsed.maxRetries >= 0
             ? Math.min(10, Math.floor(parsed.maxRetries))
             : env.maxRetries,
+        geminiApiKey: typeof parsed.geminiApiKey === "string" ? parsed.geminiApiKey : env.geminiApiKey,
+        geminiModel: typeof parsed.geminiModel === "string" ? parsed.geminiModel : env.geminiModel,
+        claudeModel: typeof parsed.claudeModel === "string" ? parsed.claudeModel : env.claudeModel,
       };
     }
   } catch {
@@ -80,6 +88,9 @@ export function saveSettings(s: AppSettings): void {
     provider: isValidProvider(s.provider) ? s.provider : "codex",
     autoGenerate: !!s.autoGenerate,
     maxRetries: Math.min(10, Math.max(0, Math.floor(s.maxRetries))),
+    geminiApiKey: s.geminiApiKey,
+    geminiModel: s.geminiModel,
+    claudeModel: s.claudeModel,
   };
   const tmp = `${SETTINGS_PATH}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(file, null, 2));

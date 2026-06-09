@@ -35,6 +35,9 @@ export async function POST(req: Request) {
       typeof b.maxRetries === "number" && b.maxRetries >= 0
         ? b.maxRetries
         : current.maxRetries,
+    geminiApiKey: typeof b.geminiApiKey === "string" ? b.geminiApiKey : current.geminiApiKey,
+    geminiModel: typeof b.geminiModel === "string" ? b.geminiModel : current.geminiModel,
+    claudeModel: typeof b.claudeModel === "string" ? b.claudeModel : current.claudeModel,
   };
   saveSettings(next);
   return NextResponse.json(next);

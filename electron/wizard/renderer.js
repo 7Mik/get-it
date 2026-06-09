@@ -14,6 +14,8 @@ const els = {
   loginDesc: document.getElementById("login-desc"),
   loginStatus: document.getElementById("login-status"),
   btnLogin: document.getElementById("btn-login"),
+  apiKeyBox: document.getElementById("api-key-box"),
+  apiKeyInput: document.getElementById("api-key-input"),
   btnFinish: document.getElementById("btn-finish"),
   btnCancel: document.getElementById("btn-cancel"),
   platformInfo: document.getElementById("platform-info"),
@@ -51,7 +53,7 @@ function render(s) {
   const isCodex = selectedProvider === "codex";
   const codexReady = s.binaryFound && s.versionOk;
   const showInstallStep = !codexReady && isCodex;
-  const showLoginStep = isCodex;
+  const showLoginStep = isCodex || selectedProvider === "gemini";
 
   els.stepInstall.hidden = !showInstallStep;
   els.stepLogin.hidden = !showLoginStep;
@@ -99,18 +101,32 @@ function render(s) {
     "error",
     s.phase === "error" && codexReady && !s.loggedIn,
   );
-  if (!codexReady) {
+  if (selectedProvider === "gemini") {
+    const h2 = els.stepLogin.querySelector("h2");
+    h2.textContent = "Configure Gemini";
+    els.loginDesc.innerHTML =
+      "Paste your Gemini API key below. It is saved to your local settings and used as the <code>GEMINI_API_KEY</code> for Gemini CLI.";
+    els.btnLogin.hidden = true;
+    els.loginStatus.innerHTML = "";
+    els.apiKeyBox.hidden = false;
+  } else if (!codexReady) {
+    els.apiKeyBox.hidden = true;
     els.loginDesc.textContent = "Install Codex CLI first.";
     els.btnLogin.disabled = true;
     els.loginStatus.innerHTML = "";
   } else if (s.loggedIn) {
+    els.apiKeyBox.hidden = true;
     els.loginDesc.textContent = "You're signed in to Codex.";
     els.btnLogin.disabled = true;
     els.btnLogin.textContent = "Signed in";
     els.loginStatus.innerHTML = `<span class="ok">✓ Connected</span>`;
   } else {
+    els.apiKeyBox.hidden = true;
+    const h2 = els.stepLogin.querySelector("h2");
+    h2.textContent = "Sign in with ChatGPT or OpenAI";
     els.loginDesc.textContent =
       "A browser window will open. After you finish signing in there, this dialog continues automatically.";
+    els.btnLogin.hidden = false;
     els.btnLogin.disabled = s.phase === "logging-in";
     els.btnLogin.textContent = "Sign in with ChatGPT";
     if (s.phase === "logging-in") {
@@ -133,7 +149,13 @@ function render(s) {
   }
 
   // ── Finish button — only enabled when everything green (or not codex)
-  els.btnFinish.disabled = isCodex ? !(codexReady && s.loggedIn) : false;
+  if (isCodex) {
+    els.btnFinish.disabled = !(codexReady && s.loggedIn);
+  } else if (selectedProvider === "gemini") {
+    els.btnFinish.disabled = !els.apiKeyInput.value.trim();
+  } else {
+    els.btnFinish.disabled = false;
+  }
 
   lastPhase = s.phase ?? "idle";
 }
@@ -154,7 +176,14 @@ els.btnLogin.addEventListener("click", async () => {
   await window.wizard.login();
 });
 els.btnFinish.addEventListener("click", async () => {
-  await window.wizard.finish({ provider: selectedProvider });
+  const payload = { provider: selectedProvider };
+  if (selectedProvider === "gemini") {
+    payload.geminiApiKey = els.apiKeyInput.value.trim();
+  }
+  await window.wizard.finish(payload);
+});
+els.apiKeyInput.addEventListener("input", () => {
+  if (lastStatus) render(lastStatus);
 });
 els.btnCancel.addEventListener("click", async () => {
   await window.wizard.cancel();
