@@ -18,13 +18,22 @@ def main():
     project_root = os.path.dirname(os.path.abspath(__file__))
     os.chdir(project_root)
 
+    use_shell = sys.platform == "win32"
+
+    # Check if node_modules exists, run npm install if it doesn't
+    if not os.path.exists("node_modules"):
+        print("node_modules not found. Running 'npm install'...")
+        try:
+            subprocess.run(["npm", "install"], shell=use_shell, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error running npm install: {e}")
+            sys.exit(1)
+
     env = os.environ.copy()
     if args.byok:
         env["NEXT_PUBLIC_DEFAULT_PROVIDER"] = "byok"
 
     print("Starting Next.js server...")
-    # Use shell=True on Windows to resolve npm.cmd
-    use_shell = sys.platform == "win32"
     proc = subprocess.Popen(["npm", "run", "browser:dev"], env=env, shell=use_shell)
     
     # Wait a bit for the Next.js server to start up

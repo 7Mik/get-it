@@ -1,0 +1,6 @@
+# No external Python requirements are needed.
+# launch.py uses only the Python standard library.
+#
+# If you ran 'pip install -r requirements.txt', you don't need any dependencies.
+# The app itself is built in Node.js/Next.js, so it will automatically run
+# 'npm install' when you run launch.py.
