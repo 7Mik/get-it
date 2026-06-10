@@ -6,14 +6,15 @@
  * provider the user selected in Settings.
  */
 
-/** The three supported AI backends. */
-export type ProviderName = "codex" | "gemini" | "claude";
+/** The four supported AI backends. */
+export type ProviderName = "codex" | "gemini" | "claude" | "byok";
 
 /** Human-readable display names used in the UI. */
 export const PROVIDER_LABELS: Record<ProviderName, string> = {
   codex: "Codex CLI",
   gemini: "Gemini CLI",
   claude: "Claude Code",
+  byok: "BYOK (OpenAI Compatible)",
 };
 
 /** CLI binary names used for PATH detection. */
@@ -21,6 +22,7 @@ export const PROVIDER_BINARIES: Record<ProviderName, string> = {
   codex: "codex",
   gemini: "gemini",
   claude: "claude",
+  byok: "",
 };
 
 /** npm package names for auto-install. */
@@ -28,6 +30,7 @@ export const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   codex: "@openai/codex",
   gemini: "@google/gemini-cli",
   claude: "@anthropic-ai/claude-code",
+  byok: "",
 };
 
 /** Documentation URLs shown when auto-install fails. */
@@ -35,6 +38,7 @@ export const PROVIDER_DOCS: Record<ProviderName, string> = {
   codex: "https://github.com/openai/codex#login",
   gemini: "https://github.com/google-gemini/gemini-cli",
   claude: "https://docs.anthropic.com/en/docs/claude-code",
+  byok: "https://github.com/ollama/ollama",
 };
 
 export type RunOptions = {

@@ -26,6 +26,9 @@ export type AppSettings = {
   geminiApiKey?: string;
   geminiModel?: string;
   claudeModel?: string;
+  byokUrl?: string;
+  byokApiKey?: string;
+  byokModel?: string;
 };
 
 const VERSION = 2 as const;
@@ -34,7 +37,7 @@ const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
 /** Default provider from env, fallback to "codex". */
 const DEFAULT_PROVIDER: ProviderName = (() => {
   const raw = process.env.NEXT_PUBLIC_DEFAULT_PROVIDER;
-  if (raw === "gemini" || raw === "claude") return raw;
+  if (raw === "gemini" || raw === "claude" || raw === "byok") return raw;
   return "codex";
 })();
 
@@ -45,11 +48,14 @@ function defaultsFromEnv(): AppSettings {
     maxRetries: MAX_VIZ_GEN_RETRIES,
     geminiModel: "gemini-3.5-flash",
     claudeModel: "claude-3-7-sonnet-20250219",
+    byokUrl: process.env.OPENAI_BASE_URL || "http://localhost:11434/v1",
+    byokApiKey: process.env.OPENAI_API_KEY || "",
+    byokModel: process.env.OPENAI_MODEL || "llama3.2",
   };
 }
 
 function isValidProvider(v: unknown): v is ProviderName {
-  return v === "codex" || v === "gemini" || v === "claude";
+  return v === "codex" || v === "gemini" || v === "claude" || v === "byok";
 }
 
 export function loadSettings(): AppSettings {
@@ -73,6 +79,9 @@ export function loadSettings(): AppSettings {
         geminiApiKey: typeof parsed.geminiApiKey === "string" ? parsed.geminiApiKey : env.geminiApiKey,
         geminiModel: typeof parsed.geminiModel === "string" ? parsed.geminiModel : env.geminiModel,
         claudeModel: typeof parsed.claudeModel === "string" ? parsed.claudeModel : env.claudeModel,
+        byokUrl: typeof parsed.byokUrl === "string" ? parsed.byokUrl : env.byokUrl,
+        byokApiKey: typeof parsed.byokApiKey === "string" ? parsed.byokApiKey : env.byokApiKey,
+        byokModel: typeof parsed.byokModel === "string" ? parsed.byokModel : env.byokModel,
       };
     }
   } catch {
@@ -91,6 +100,9 @@ export function saveSettings(s: AppSettings): void {
     geminiApiKey: s.geminiApiKey,
     geminiModel: s.geminiModel,
     claudeModel: s.claudeModel,
+    byokUrl: s.byokUrl,
+    byokApiKey: s.byokApiKey,
+    byokModel: s.byokModel,
   };
   const tmp = `${SETTINGS_PATH}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(file, null, 2));

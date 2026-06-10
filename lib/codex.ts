@@ -27,6 +27,7 @@ import type { ProviderName } from "./provider-types";
 import { CodexProvider } from "./providers/codex-provider";
 import { GeminiProvider } from "./providers/gemini-provider";
 import { ClaudeProvider } from "./providers/claude-provider";
+import { ByokProvider } from "./providers/byok-provider";
 
 // Re-export RunOptions from here so existing imports keep working.
 // Add back the threadOverrides for Codex-specific callers.
@@ -40,6 +41,7 @@ const providers: Record<ProviderName, AIProvider> = {
   codex: new CodexProvider(),
   gemini: new GeminiProvider(),
   claude: new ClaudeProvider(),
+  byok: new ByokProvider(),
 };
 
 function activeProvider(): AIProvider {
