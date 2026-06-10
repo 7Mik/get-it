@@ -39,7 +39,7 @@ def main():
     # Wait a bit for the Next.js server to start up
     time.sleep(3)
     
-    url = "http://127.0.0.1:3000"
+    url = "http://localhost:3000"
     print(f"\nOpening {url} in your default browser...\n")
     webbrowser.open(url)
     

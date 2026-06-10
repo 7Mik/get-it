@@ -13,6 +13,7 @@ const pkg = createRequire(import.meta.url)("./package.json") as {
 };
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["localhost:3000", "127.0.0.1:3000"],
   turbopack: {
     root: path.resolve(__dirname),
   },
