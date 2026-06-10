@@ -52,3 +52,6 @@ next-env.d.ts
 /electron/gemini-bin/
 /electron/claude-bin/
 snaps-mobile/
+
+# local settings file (if custom DATA_DIR is used)
+settings.json
