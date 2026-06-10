@@ -113,7 +113,10 @@ export class GeminiProvider implements AIProvider {
     const fullPrompt = buildPromptWithSchema(prompt, outputSchema);
 
     const settings = loadSettings();
-    const model = settings.geminiModel || "gemini-3.5-flash";
+    const model =
+      opts.reasoning === "low"
+        ? settings.geminiModelFast || "gemini-3.5-flash"
+        : settings.geminiModelSmart || "gemini-2.5-pro";
     ensureGeminiProjectSettings(model);
 
     const args = [
@@ -162,7 +165,10 @@ export class GeminiProvider implements AIProvider {
         args.outputSchema,
       );
       const settings = loadSettings();
-      const model = settings.geminiModel || "gemini-3.5-flash";
+      const model =
+        opts.reasoning === "low"
+          ? settings.geminiModelFast || "gemini-3.5-flash"
+          : settings.geminiModelSmart || "gemini-2.5-pro";
       ensureGeminiProjectSettings(model);
 
       const cliArgs = [
@@ -209,7 +215,10 @@ export class GeminiProvider implements AIProvider {
       args.outputSchema,
     );
     const settings = loadSettings();
-    const model = settings.geminiModel || "gemini-3.5-flash";
+    const model =
+      opts.reasoning === "low"
+        ? settings.geminiModelFast || "gemini-3.5-flash"
+        : settings.geminiModelSmart || "gemini-2.5-pro";
     ensureGeminiProjectSettings(model);
 
     const cliArgs = [

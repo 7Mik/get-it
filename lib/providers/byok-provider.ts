@@ -53,7 +53,10 @@ export class ByokProvider implements AIProvider {
   private async fetchCompletion(messages: any[], opts: RunOptions) {
     const settings = loadSettings();
     const baseUrl = (settings.byokUrl || "http://localhost:11434/v1").replace(/\/$/, "");
-    const model = settings.byokModel || "llama3.2";
+    const model =
+      opts.reasoning === "low"
+        ? settings.byokModelFast || "llama3.2"
+        : settings.byokModelSmart || "llama3.2";
     const apiKey = settings.byokApiKey || "empty";
 
     const payload = {

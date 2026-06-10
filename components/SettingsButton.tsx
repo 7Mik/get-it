@@ -20,12 +20,13 @@ import { Settings2 } from "lucide-react";
 import { AUTO_GENERATE_VIZ, MAX_VIZ_GEN_RETRIES } from "@/lib/config";
 import { APP_VERSION } from "@/lib/version";
 
-type ProviderName = "codex" | "gemini" | "claude";
+type ProviderName = "codex" | "gemini" | "claude" | "byok";
 
 const PROVIDER_OPTIONS: { value: ProviderName; label: string; note: string }[] = [
   { value: "codex", label: "Codex CLI", note: "OpenAI Codex SDK" },
   { value: "gemini", label: "Gemini CLI", note: "Requires gemini CLI installed" },
   { value: "claude", label: "Claude Code", note: "Requires claude CLI installed" },
+  { value: "byok", label: "BYOK", note: "Bring Your Own Key (OpenAI Compatible API)" },
 ];
 
 export type SettingsPayload = {
@@ -33,8 +34,14 @@ export type SettingsPayload = {
   autoGenerate: boolean;
   maxRetries: number;
   geminiApiKey?: string;
-  geminiModel?: string;
-  claudeModel?: string;
+  geminiModelFast?: string;
+  geminiModelSmart?: string;
+  claudeModelFast?: string;
+  claudeModelSmart?: string;
+  byokUrl?: string;
+  byokApiKey?: string;
+  byokModelFast?: string;
+  byokModelSmart?: string;
 };
 
 export const SETTINGS_EVENT = "getit:settings";
@@ -103,8 +110,14 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
   const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
   const [geminiApiKey, setGeminiApiKey] = useState<string>("");
   const [needGeminiKey, setNeedGeminiKey] = useState<boolean>(false);
-  const [geminiModel, setGeminiModel] = useState<string>("gemini-2.5-pro");
-  const [claudeModel, setClaudeModel] = useState<string>("claude-3-7-sonnet-20250219");
+  const [geminiModelFast, setGeminiModelFast] = useState<string>("gemini-3.5-flash");
+  const [geminiModelSmart, setGeminiModelSmart] = useState<string>("gemini-2.5-pro");
+  const [claudeModelFast, setClaudeModelFast] = useState<string>("claude-3-5-haiku-20241022");
+  const [claudeModelSmart, setClaudeModelSmart] = useState<string>("claude-3-7-sonnet-20250219");
+  const [byokUrl, setByokUrl] = useState<string>("http://localhost:11434/v1");
+  const [byokApiKey, setByokApiKey] = useState<string>("");
+  const [byokModelFast, setByokModelFast] = useState<string>("llama3.2");
+  const [byokModelSmart, setByokModelSmart] = useState<string>("llama3.2");
   const hydratedRef = useRef(false);
 
   // Fetch fresh on every popover open so external changes (CLI edits,
@@ -117,13 +130,19 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
       .then((r) => r.json())
       .then((s: SettingsPayload) => {
         if (cancelled) return;
-        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude")
+        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude" || s.provider === "byok")
           setProvider(s.provider);
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
         if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
         if (typeof s.geminiApiKey === "string") setGeminiApiKey(s.geminiApiKey);
-        if (typeof s.geminiModel === "string") setGeminiModel(s.geminiModel);
-        if (typeof s.claudeModel === "string") setClaudeModel(s.claudeModel);
+        if (typeof s.geminiModelFast === "string") setGeminiModelFast(s.geminiModelFast);
+        if (typeof s.geminiModelSmart === "string") setGeminiModelSmart(s.geminiModelSmart);
+        if (typeof s.claudeModelFast === "string") setClaudeModelFast(s.claudeModelFast);
+        if (typeof s.claudeModelSmart === "string") setClaudeModelSmart(s.claudeModelSmart);
+        if (typeof s.byokUrl === "string") setByokUrl(s.byokUrl);
+        if (typeof s.byokApiKey === "string") setByokApiKey(s.byokApiKey);
+        if (typeof s.byokModelFast === "string") setByokModelFast(s.byokModelFast);
+        if (typeof s.byokModelSmart === "string") setByokModelSmart(s.byokModelSmart);
         hydratedRef.current = true;
       })
       .catch(() => {
@@ -193,14 +212,44 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
     if (v.trim()) setNeedGeminiKey(false);
   }, [persist]);
 
-  const onGeminiModel = useCallback((v: string) => {
-    setGeminiModel(v);
-    persist({ geminiModel: v });
+  const onGeminiModelFast = useCallback((v: string) => {
+    setGeminiModelFast(v);
+    persist({ geminiModelFast: v });
   }, [persist]);
 
-  const onClaudeModel = useCallback((v: string) => {
-    setClaudeModel(v);
-    persist({ claudeModel: v });
+  const onGeminiModelSmart = useCallback((v: string) => {
+    setGeminiModelSmart(v);
+    persist({ geminiModelSmart: v });
+  }, [persist]);
+
+  const onClaudeModelFast = useCallback((v: string) => {
+    setClaudeModelFast(v);
+    persist({ claudeModelFast: v });
+  }, [persist]);
+
+  const onClaudeModelSmart = useCallback((v: string) => {
+    setClaudeModelSmart(v);
+    persist({ claudeModelSmart: v });
+  }, [persist]);
+
+  const onByokUrl = useCallback((v: string) => {
+    setByokUrl(v);
+    persist({ byokUrl: v });
+  }, [persist]);
+
+  const onByokApiKey = useCallback((v: string) => {
+    setByokApiKey(v);
+    persist({ byokApiKey: v });
+  }, [persist]);
+
+  const onByokModelFast = useCallback((v: string) => {
+    setByokModelFast(v);
+    persist({ byokModelFast: v });
+  }, [persist]);
+
+  const onByokModelSmart = useCallback((v: string) => {
+    setByokModelSmart(v);
+    persist({ byokModelSmart: v });
   }, [persist]);
 
   return (
@@ -330,7 +379,7 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         )}
 
         {tab === "setup" && (
-          <div className="px-2 py-2.5">
+          <div className="px-2 py-2.5 max-h-[260px] overflow-y-auto">
             <p className="mb-2 text-[12.5px] font-medium text-[var(--ink-900)]">
               {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label} Setup
             </p>
@@ -368,12 +417,39 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
                 Once authenticated, requests will automatically succeed.
               </p>
             )}
+            {provider === "byok" && (
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+                  Configure your custom OpenAI-compatible API endpoint (e.g. Ollama, OpenRouter, LocalAI).
+                </p>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10.5px] font-semibold text-[var(--ink-600)]">Base URL</label>
+                  <input
+                    type="text"
+                    placeholder="http://localhost:11434/v1"
+                    value={byokUrl}
+                    onChange={(e) => onByokUrl(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2.5 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10.5px] font-semibold text-[var(--ink-600)]">API Key (optional)</label>
+                  <input
+                    type="password"
+                    placeholder="None or API Key..."
+                    value={byokApiKey}
+                    onChange={(e) => onByokApiKey(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2.5 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {tab === "models" && (
-          <div className="px-2 py-2.5">
-            <p className="mb-2 text-[12.5px] font-medium text-[var(--ink-900)]">
+          <div className="px-2 py-2.5 max-h-[280px] overflow-y-auto flex flex-col gap-3.5">
+            <p className="text-[12.5px] font-semibold text-[var(--ink-900)]">
               Model Selection
             </p>
             {provider === "codex" && (
@@ -382,37 +458,96 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
               </p>
             )}
             {provider === "gemini" && (
-              <div className="flex flex-col gap-2">
-                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
-                  Select a Gemini model to use:
-                </p>
-                <select
-                  value={geminiModel}
-                  onChange={(e) => onGeminiModel(e.target.value)}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
-                >
-                  <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                  <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp</option>
-                  <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                </select>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Fast Model (Concept Detection)
+                  </label>
+                  <select
+                    value={geminiModelFast}
+                    onChange={(e) => onGeminiModelFast(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  >
+                    <option value="gemini-3.5-flash">gemini-3.5-flash (default)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Smart Model (Visualization & Chat)
+                  </label>
+                  <select
+                    value={geminiModelSmart}
+                    onChange={(e) => onGeminiModelSmart(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  >
+                    <option value="gemini-2.5-pro">gemini-2.5-pro (default)</option>
+                    <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp</option>
+                    <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                  </select>
+                </div>
               </div>
             )}
             {provider === "claude" && (
-              <div className="flex flex-col gap-2">
-                <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
-                  Select a Claude model to use:
-                </p>
-                <select
-                  value={claudeModel}
-                  onChange={(e) => onClaudeModel(e.target.value)}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
-                >
-                  <option value="claude-3-7-sonnet-20250219">claude-3-7-sonnet</option>
-                  <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
-                  <option value="claude-3-opus-20240229">claude-3-opus</option>
-                  <option value="claude-3-5-haiku-20241022">claude-3-5-haiku</option>
-                </select>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Fast Model (Concept Detection)
+                  </label>
+                  <select
+                    value={claudeModelFast}
+                    onChange={(e) => onClaudeModelFast(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  >
+                    <option value="claude-3-5-haiku-20241022">claude-3-5-haiku (default)</option>
+                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Smart Model (Visualization & Chat)
+                  </label>
+                  <select
+                    value={claudeModelSmart}
+                    onChange={(e) => onClaudeModelSmart(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  >
+                    <option value="claude-3-7-sonnet-20250219">claude-3-7-sonnet (default)</option>
+                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                    <option value="claude-3-opus-20240229">claude-3-opus</option>
+                    <option value="claude-3-5-haiku-20241022">claude-3-5-haiku</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            {provider === "byok" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Fast Model (Concept Detection)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="llama3.2"
+                    value={byokModelFast}
+                    onChange={(e) => onByokModelFast(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2.5 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-[var(--ink-700)]">
+                    Smart Model (Visualization & Chat)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="llama3.2"
+                    value={byokModelSmart}
+                    onChange={(e) => onByokModelSmart(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border-subtle)] bg-white px-2.5 py-1.5 text-[12px] text-[var(--ink-900)] focus:border-[var(--accent-500)] focus:outline-none"
+                  />
+                </div>
               </div>
             )}
           </div>

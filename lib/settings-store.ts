@@ -24,11 +24,17 @@ export type AppSettings = {
   autoGenerate: boolean;
   maxRetries: number;
   geminiApiKey?: string;
-  geminiModel?: string;
-  claudeModel?: string;
+  geminiModel?: string; // legacy support
+  geminiModelFast?: string;
+  geminiModelSmart?: string;
+  claudeModel?: string; // legacy support
+  claudeModelFast?: string;
+  claudeModelSmart?: string;
   byokUrl?: string;
   byokApiKey?: string;
-  byokModel?: string;
+  byokModel?: string; // legacy support
+  byokModelFast?: string;
+  byokModelSmart?: string;
 };
 
 const VERSION = 2 as const;
@@ -46,11 +52,14 @@ function defaultsFromEnv(): AppSettings {
     provider: DEFAULT_PROVIDER,
     autoGenerate: AUTO_GENERATE_VIZ,
     maxRetries: MAX_VIZ_GEN_RETRIES,
-    geminiModel: "gemini-3.5-flash",
-    claudeModel: "claude-3-7-sonnet-20250219",
+    geminiModelFast: "gemini-3.5-flash",
+    geminiModelSmart: "gemini-2.5-pro",
+    claudeModelFast: "claude-3-5-haiku-20241022",
+    claudeModelSmart: "claude-3-7-sonnet-20250219",
     byokUrl: process.env.OPENAI_BASE_URL || "http://localhost:11434/v1",
     byokApiKey: process.env.OPENAI_API_KEY || "",
-    byokModel: process.env.OPENAI_MODEL || "llama3.2",
+    byokModelFast: process.env.OPENAI_MODEL || "llama3.2",
+    byokModelSmart: process.env.OPENAI_MODEL || "llama3.2",
   };
 }
 
@@ -64,6 +73,10 @@ export function loadSettings(): AppSettings {
     const parsed = JSON.parse(raw) as { v: number } & Partial<AppSettings>;
     if (parsed && (parsed.v === VERSION || parsed.v === 1)) {
       const env = defaultsFromEnv();
+      const legacyGemini = parsed.geminiModel || env.geminiModelFast;
+      const legacyClaude = parsed.claudeModel || env.claudeModelSmart;
+      const legacyByok = parsed.byokModel || env.byokModelSmart;
+
       return {
         provider: isValidProvider(parsed.provider)
           ? parsed.provider
@@ -77,11 +90,14 @@ export function loadSettings(): AppSettings {
             ? Math.min(10, Math.floor(parsed.maxRetries))
             : env.maxRetries,
         geminiApiKey: typeof parsed.geminiApiKey === "string" ? parsed.geminiApiKey : env.geminiApiKey,
-        geminiModel: typeof parsed.geminiModel === "string" ? parsed.geminiModel : env.geminiModel,
-        claudeModel: typeof parsed.claudeModel === "string" ? parsed.claudeModel : env.claudeModel,
+        geminiModelFast: typeof parsed.geminiModelFast === "string" ? parsed.geminiModelFast : legacyGemini,
+        geminiModelSmart: typeof parsed.geminiModelSmart === "string" ? parsed.geminiModelSmart : legacyGemini,
+        claudeModelFast: typeof parsed.claudeModelFast === "string" ? parsed.claudeModelFast : legacyClaude,
+        claudeModelSmart: typeof parsed.claudeModelSmart === "string" ? parsed.claudeModelSmart : legacyClaude,
         byokUrl: typeof parsed.byokUrl === "string" ? parsed.byokUrl : env.byokUrl,
         byokApiKey: typeof parsed.byokApiKey === "string" ? parsed.byokApiKey : env.byokApiKey,
-        byokModel: typeof parsed.byokModel === "string" ? parsed.byokModel : env.byokModel,
+        byokModelFast: typeof parsed.byokModelFast === "string" ? parsed.byokModelFast : legacyByok,
+        byokModelSmart: typeof parsed.byokModelSmart === "string" ? parsed.byokModelSmart : legacyByok,
       };
     }
   } catch {
@@ -98,11 +114,14 @@ export function saveSettings(s: AppSettings): void {
     autoGenerate: !!s.autoGenerate,
     maxRetries: Math.min(10, Math.max(0, Math.floor(s.maxRetries))),
     geminiApiKey: s.geminiApiKey,
-    geminiModel: s.geminiModel,
-    claudeModel: s.claudeModel,
+    geminiModelFast: s.geminiModelFast,
+    geminiModelSmart: s.geminiModelSmart,
+    claudeModelFast: s.claudeModelFast,
+    claudeModelSmart: s.claudeModelSmart,
     byokUrl: s.byokUrl,
     byokApiKey: s.byokApiKey,
-    byokModel: s.byokModel,
+    byokModelFast: s.byokModelFast,
+    byokModelSmart: s.byokModelSmart,
   };
   const tmp = `${SETTINGS_PATH}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(file, null, 2));
