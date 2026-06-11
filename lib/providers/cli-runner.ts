@@ -170,6 +170,7 @@ export async function runCliBinary(
         ELECTRON_RUN_AS_NODE: binPath.endsWith(".js") ? "1" : process.env.ELECTRON_RUN_AS_NODE,
         ...(opts?.env || {}),
       },
+      // @ts-ignore: 'detached' is missing in some version of node types for ExecFileOptions
       detached: process.platform !== "win32",
     };
 
