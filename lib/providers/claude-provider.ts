@@ -66,7 +66,10 @@ export class ClaudeProvider implements AIProvider {
     const bin = resolveBinary();
 
     const settings = loadSettings();
-    const model = settings.claudeModelFast || "claude-3-5-haiku-20241022";
+    const reasoning = opts.reasoning ?? "low";
+    const model = reasoning === "low" 
+      ? (settings.claudeModelFast || "claude-3-5-haiku-20241022") 
+      : (settings.claudeModelSmart || "claude-3-7-sonnet-20250219");
 
     const args = [
       "-p",
@@ -122,7 +125,10 @@ export class ClaudeProvider implements AIProvider {
 
     if (args.resume) {
       const settings = loadSettings();
-      const model = settings.claudeModelSmart || "claude-3-7-sonnet-20250219";
+      const reasoning = opts.reasoning ?? "low";
+      const model = reasoning === "low" 
+        ? (settings.claudeModelFast || "claude-3-5-haiku-20241022") 
+        : (settings.claudeModelSmart || "claude-3-7-sonnet-20250219");
 
       // Use --resume <session-id> for thread continuation
       const cliArgs = [
@@ -175,7 +181,10 @@ export class ClaudeProvider implements AIProvider {
       throw new Error("runJsonInThread: provide `start` or `resume`");
 
     const settings = loadSettings();
-    const model = settings.claudeModelSmart || "claude-3-7-sonnet-20250219";
+    const reasoning = opts.reasoning ?? "low";
+    const model = reasoning === "low" 
+      ? (settings.claudeModelFast || "claude-3-5-haiku-20241022") 
+      : (settings.claudeModelSmart || "claude-3-7-sonnet-20250219");
 
     const cliArgs = [
       "-p",

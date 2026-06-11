@@ -170,6 +170,7 @@ export async function runCliBinary(
         ELECTRON_RUN_AS_NODE: binPath.endsWith(".js") ? "1" : process.env.ELECTRON_RUN_AS_NODE,
         ...(opts?.env || {}),
       },
+      detached: process.platform !== "win32",
     };
 
     const p = execFileAsync(finalBinPath, finalArgs, execOptions);
@@ -180,6 +181,24 @@ export async function runCliBinary(
         p.child.stdin.write(opts.stdin);
       }
       p.child.stdin.end();
+    }
+
+    if (opts?.signal) {
+      const controller = new AbortController();
+      const onAbort = () => {
+        if (p.child && typeof p.child.pid === "number") {
+          try {
+            if (process.platform === "win32") {
+              const { spawnSync } = require("child_process");
+              spawnSync("taskkill", ["/pid", String(p.child.pid), "/f", "/t"], { stdio: "ignore", windowsHide: true });
+            } else {
+              process.kill(-p.child.pid, "SIGKILL");
+            }
+          } catch {}
+        }
+      };
+      opts.signal.addEventListener("abort", onAbort, { once: true });
+      p.finally(() => opts.signal?.removeEventListener("abort", onAbort));
     }
 
     const { stdout, stderr } = await p;

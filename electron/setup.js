@@ -800,6 +800,9 @@ async function ensureProviderReady() {
     return false;
   }
 
+  // BYOK does not require a binary.
+  if (provider === "pi") return true;
+
   // Check auth
   // Both Claude and Gemini use terminal-based authentication
   let authenticated = false;

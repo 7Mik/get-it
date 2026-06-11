@@ -75,9 +75,11 @@ export type CodexHealth = {
   lastOkAt: number | null;
 };
 
+type HealthMap = Record<ProviderName, CodexHealth>;
+
 declare global {
   // eslint-disable-next-line no-var
-  var __getitCodexHealth: CodexHealth | undefined;
+  var __getitHealthState: HealthMap | undefined;
 }
 
 const _initialHealth: CodexHealth = {
@@ -90,11 +92,19 @@ const _initialHealth: CodexHealth = {
   lastOkAt: null,
 };
 
-const health: CodexHealth =
-  globalThis.__getitCodexHealth ??
-  (globalThis.__getitCodexHealth = { ..._initialHealth });
+const healthMap: HealthMap = globalThis.__getitHealthState ?? (globalThis.__getitHealthState = {
+  codex: { ..._initialHealth },
+  gemini: { ..._initialHealth },
+  claude: { ..._initialHealth },
+  pi: { ..._initialHealth },
+});
+
+function getHealth(): CodexHealth {
+  return healthMap[getActiveProviderName()];
+}
 
 export function getCodexHealth(): CodexHealth {
+  const health = getHealth();
   if (
     health.kind === "rate_limit" &&
     health.retryAt != null &&
@@ -106,6 +116,7 @@ export function getCodexHealth(): CodexHealth {
 }
 
 function markOk() {
+  const health = getHealth();
   if (!health.ok) {
     Object.assign(health, _initialHealth, { serial: health.serial + 1 });
   }
@@ -114,6 +125,7 @@ function markOk() {
 }
 
 function markError(err: CodexError) {
+  const health = getHealth();
   health.ok = false;
   health.kind = err.kind;
   health.message = err.message;
@@ -123,6 +135,7 @@ function markError(err: CodexError) {
 }
 
 function preflightHealth(): CodexError | null {
+  const health = getHealth();
   if (
     health.kind === "rate_limit" &&
     health.retryAt != null &&

@@ -110,6 +110,18 @@ module.exports = async function afterPack(context) {
     console.log(`[after-pack] restored ${rel} (${fileCount} files)`);
   }
 
+  // Next.js standalone tracing drops these heavy/CLI-only dependencies because
+  // they aren't explicitly imported in server code, but we need them in the bundle.
+  const explicitKeep = ["@google", "@anthropic-ai", "@langchain"];
+  for (const pkg of explicitKeep) {
+    const pkgSrc = path.join(projectDir, "node_modules", pkg);
+    const pkgDest = path.join(appResources, ".next/standalone/node_modules", pkg);
+    if (fs.existsSync(pkgSrc)) {
+      copyDirSync(pkgSrc, pkgDest);
+      console.log(`[after-pack] explicitly kept ${pkg} in standalone node_modules`);
+    }
+  }
+
   // Drop the wrong-platform Codex binaries.
   //
   // `@openai/codex`'s install pulls every supported platform tarball as

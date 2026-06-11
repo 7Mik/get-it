@@ -118,13 +118,15 @@ export default function CodexHealthBanner() {
   const label = PROVIDER_LABELS[provider];
 
   const handleReconnect = useCallback(async () => {
-    if (typeof window !== "undefined" && window.getit?.runCodexSetup) {
-      setReconnecting(true);
-      try {
-        await window.getit.runCodexSetup();
-      } finally {
-        setReconnecting(false);
-      }
+    if (!window.getit?.runCodexSetup) {
+      alert("Please open Settings to re-configure your provider.");
+      return;
+    }
+    setReconnecting(true);
+    try {
+      await window.getit.runCodexSetup();
+    } finally {
+      setReconnecting(false);
     }
   }, []);
 

@@ -71,6 +71,7 @@ function defaultsFromEnv(): AppSettings {
     claudeModelFast: "claude-3-7-sonnet-20250219",
     claudeModelSmart: "claude-3-7-sonnet-20250219",
     claudeEffort: "medium",
+    geminiApiKey: process.env.GEMINI_API_KEY || "",
     piUrl,
     piApiKey,
     piModelFast: process.env.PI_MODEL_FAST || "llama3.2",

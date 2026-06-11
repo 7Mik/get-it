@@ -92,8 +92,10 @@ export class CodexProvider implements AIProvider {
         return { data: parsed, usage: turn.usage };
       } catch (err) {
         lastErr = err;
-        // Don't retry on parse failures — only on non-generic errors.
-        // The caller (the router) handles classification.
+        const classified = classifyCodexError(err);
+        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || (err as any).name === "AbortError") {
+          throw err;
+        }
       }
     }
     throw lastErr;
@@ -139,6 +141,10 @@ export class CodexProvider implements AIProvider {
         return { data: parsed, usage: turn.usage, threadId: thread.id };
       } catch (err) {
         lastErr = err;
+        const classified = classifyCodexError(err);
+        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || (err as any).name === "AbortError") {
+          throw err;
+        }
       }
     }
     throw lastErr;
