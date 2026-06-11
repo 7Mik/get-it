@@ -94,7 +94,7 @@ export class CodexProvider implements AIProvider {
       } catch (err) {
         lastErr = err;
         const classified = classifyCodexError(err);
-        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || (err as any).name === "AbortError") {
+        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || classified.kind === "model_unsupported" || (err as any).name === "AbortError") {
           throw err;
         }
       }
@@ -143,7 +143,7 @@ export class CodexProvider implements AIProvider {
       } catch (err) {
         lastErr = err;
         const classified = classifyCodexError(err);
-        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || (err as any).name === "AbortError") {
+        if (classified.kind === "rate_limit" || classified.kind === "auth_lost" || classified.kind === "binary_missing" || classified.kind === "model_unsupported" || (err as any).name === "AbortError") {
           throw err;
         }
       }

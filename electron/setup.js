@@ -680,7 +680,7 @@ function readSavedProvider() {
     const settingsPath = path.join(app.getPath("userData"), "settings.json");
     if (!fs.existsSync(settingsPath)) return "codex";
     const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    if (raw.provider === "gemini" || raw.provider === "claude") return raw.provider;
+    if (raw.provider === "gemini" || raw.provider === "claude" || raw.provider === "pi") return raw.provider;
     return "codex";
   } catch {
     return "codex";
@@ -788,6 +788,9 @@ async function ensureProviderReady() {
 
   const binPath = resolveBundledBinary(provider);
 
+  // BYOK does not require a binary.
+  if (provider === "pi") return true;
+
   if (!binPath) {
     const label = PROVIDER_LABELS[provider];
     const { dialog: d } = require("electron");
@@ -799,9 +802,6 @@ async function ensureProviderReady() {
     });
     return false;
   }
-
-  // BYOK does not require a binary.
-  if (provider === "pi") return true;
 
   // Check auth
   // Both Claude and Gemini use terminal-based authentication

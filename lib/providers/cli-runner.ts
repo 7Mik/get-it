@@ -198,7 +198,7 @@ export async function runCliBinary(
         }
       };
       opts.signal.addEventListener("abort", onAbort, { once: true });
-      p.finally(() => opts.signal?.removeEventListener("abort", onAbort));
+      p.finally(() => opts.signal?.removeEventListener("abort", onAbort)).catch(() => {});
     }
 
     const { stdout, stderr } = await p;
