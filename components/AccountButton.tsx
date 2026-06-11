@@ -182,9 +182,9 @@ function AccountPanel({ refreshKey }: { refreshKey: string }) {
         <button
           type="button"
           onClick={handleLogout}
-          disabled={loggingOut || (data ? data.provider !== "codex" : false)}
-          title={data?.provider === "codex" || !data ? "Sign out of Codex and return to the setup wizard" : "Change settings in the Settings menu"}
-          className={`inline-flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-white px-2 py-0.5 text-[10.5px] font-medium text-[var(--ink-700)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 ${data && data.provider !== "codex" ? "invisible" : ""}`}
+          disabled={loggingOut || !data || data.provider !== "codex"}
+          title={!data || data.provider === "codex" ? "Sign out of Codex and return to the setup wizard" : "Change settings in the Settings menu"}
+          className={`inline-flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-white px-2 py-0.5 text-[10.5px] font-medium text-[var(--ink-700)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 ${!data || data.provider !== "codex" ? "invisible" : ""}`}
         >
           {loggingOut ? (
             <RefreshCw className="h-2.5 w-2.5 animate-spin" />

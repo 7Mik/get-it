@@ -184,7 +184,6 @@ export async function runCliBinary(
     }
 
     if (opts?.signal) {
-      const controller = new AbortController();
       const onAbort = () => {
         if (p.child && typeof p.child.pid === "number") {
           try {

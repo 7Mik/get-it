@@ -99,8 +99,8 @@ const healthMap: HealthMap = globalThis.__getitHealthState ?? (globalThis.__geti
   pi: { ..._initialHealth },
 });
 
-function getHealth(): CodexHealth {
-  return healthMap[getActiveProviderName()];
+function getHealth(providerName?: ProviderName): CodexHealth {
+  return healthMap[providerName ?? getActiveProviderName()];
 }
 
 export function getCodexHealth(): CodexHealth {
@@ -115,8 +115,8 @@ export function getCodexHealth(): CodexHealth {
   return { ...health };
 }
 
-function markOk() {
-  const health = getHealth();
+function markOk(providerName: ProviderName) {
+  const health = getHealth(providerName);
   if (!health.ok) {
     Object.assign(health, _initialHealth, { serial: health.serial + 1 });
   }
@@ -124,8 +124,8 @@ function markOk() {
   health.ok = true;
 }
 
-function markError(err: CodexError) {
-  const health = getHealth();
+function markError(providerName: ProviderName, err: CodexError) {
+  const health = getHealth(providerName);
   health.ok = false;
   health.kind = err.kind;
   health.message = err.message;
@@ -134,8 +134,8 @@ function markError(err: CodexError) {
   health.serial += 1;
 }
 
-function preflightHealth(): CodexError | null {
-  const health = getHealth();
+function preflightHealth(providerName: ProviderName): CodexError | null {
+  const health = getHealth(providerName);
   if (
     health.kind === "rate_limit" &&
     health.retryAt != null &&
@@ -161,17 +161,19 @@ export async function runJson<T>(
   outputSchema: object,
   opts: RunOptions = {},
 ): Promise<{ data: T; usage: unknown }> {
-  const preflight = preflightHealth();
+  const providerName = getActiveProviderName();
+  const preflight = preflightHealth(providerName);
   if (preflight) throw preflight;
 
   try {
-    const result = await activeProvider().runJson<T>(prompt, outputSchema, opts);
-    markOk();
+    const provider = providers[providerName] ?? providers.codex;
+    const result = await provider.runJson<T>(prompt, outputSchema, opts);
+    markOk(providerName);
     return result;
   } catch (err) {
     const classified = classifyCodexError(err);
     if (classified.kind !== "generic") {
-      markError(classified);
+      markError(providerName, classified);
     }
     throw classified;
   }
@@ -193,17 +195,19 @@ export async function runJsonInThread<T>(args: {
   resume?: { threadId: string; input: string };
   start?: { input: string };
 }): Promise<{ data: T; usage: unknown; threadId: string | null }> {
-  const preflight = preflightHealth();
+  const providerName = getActiveProviderName();
+  const preflight = preflightHealth(providerName);
   if (preflight) throw preflight;
 
   try {
-    const result = await activeProvider().runJsonInThread<T>(args);
-    markOk();
+    const provider = providers[providerName] ?? providers.codex;
+    const result = await provider.runJsonInThread<T>(args);
+    markOk(providerName);
     return result;
   } catch (err) {
     const classified = classifyCodexError(err);
     if (classified.kind !== "generic") {
-      markError(classified);
+      markError(providerName, classified);
     }
     throw classified;
   }

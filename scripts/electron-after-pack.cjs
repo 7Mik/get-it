@@ -174,21 +174,26 @@ module.exports = async function afterPack(context) {
   }
 
   const keepClaudePkg = `claude-code-${platformKey}-${arch}`;
-  const claudeModules = path.join(appResources, "node_modules", "@anthropic-ai");
-  if (fs.existsSync(claudeModules)) {
-    let pruned = 0;
-    for (const entry of fs.readdirSync(claudeModules)) {
-      if (entry === "claude-code" || entry === keepClaudePkg) continue;
-      if (entry.startsWith("claude-code-")) {
-        fs.rmSync(path.join(claudeModules, entry), {
-          recursive: true,
-          force: true,
-        });
-        pruned += 1;
+  const claudeRoots = [
+    path.join(appResources, "node_modules", "@anthropic-ai"),
+    path.join(appResources, ".next", "standalone", "node_modules", "@anthropic-ai")
+  ];
+  for (const claudeModules of claudeRoots) {
+    if (fs.existsSync(claudeModules)) {
+      let pruned = 0;
+      for (const entry of fs.readdirSync(claudeModules)) {
+        if (entry === "claude-code" || entry === keepClaudePkg) continue;
+        if (entry.startsWith("claude-code-")) {
+          fs.rmSync(path.join(claudeModules, entry), {
+            recursive: true,
+            force: true,
+          });
+          pruned += 1;
+        }
       }
-    }
-    if (pruned > 0) {
-      console.log(`[after-pack] pruned ${pruned} non-target Claude platform package(s); kept ${keepClaudePkg}`);
+      if (pruned > 0) {
+        console.log(`[after-pack] pruned ${pruned} non-target Claude platform package(s) in ${claudeModules}; kept ${keepClaudePkg}`);
+      }
     }
   }
 };

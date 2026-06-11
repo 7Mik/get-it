@@ -8,6 +8,7 @@
 
 import { Codex } from "@openai/codex-sdk";
 import type { ThreadOptions } from "@openai/codex-sdk";
+import { classifyCodexError } from "../codex-errors";
 import { CODEX_SCRATCH_DIR } from "../paths";
 import type {
   AIProvider,

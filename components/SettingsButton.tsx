@@ -216,7 +216,11 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         if (typeof s.piProvider === "string") setPiProvider(s.piProvider);
         if (typeof s.piApiType === "string") setPiApiType(s.piApiType);
         
-        if (!cancelled) hydratedRef.current = true;
+        if (!cancelled) {
+          setTimeout(() => {
+            if (!cancelled) hydratedRef.current = true;
+          }, 10);
+        }
       })
       .catch(() => {
         hydratedRef.current = true;

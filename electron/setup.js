@@ -856,4 +856,5 @@ module.exports = {
   refreshCodexStatus,
   onCodexStatusChange,
   readSavedProvider,
+  resolveBundledBinary,
 };
