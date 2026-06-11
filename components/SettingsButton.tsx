@@ -25,6 +25,10 @@ export type SettingsPayload = {
   autoGenerate: boolean;
   maxRetries: number;
   provider: ProviderName;
+  codexModelFast?: string;
+  codexModelSmart?: string;
+  codexEffortFast?: string;
+  codexEffortSmart?: string;
   geminiApiKey?: string;
   geminiModelFast?: string;
   geminiModelSmart?: string;
@@ -155,6 +159,10 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
   const [maxRetries, setMaxRetries] = useState<number>(MAX_VIZ_GEN_RETRIES);
   
   // Managed specific
+  const [codexModelFast, setCodexModelFast] = useState<string>("gpt-5.5");
+  const [codexModelSmart, setCodexModelSmart] = useState<string>("gpt-5.5");
+  const [codexEffortFast, setCodexEffortFast] = useState<string>("low");
+  const [codexEffortSmart, setCodexEffortSmart] = useState<string>("high");
   const [geminiApiKey, setGeminiApiKey] = useState<string>("");
   const [geminiModelFast, setGeminiModelFast] = useState<string>("gemini-2.5-flash");
   const [geminiModelSmart, setGeminiModelSmart] = useState<string>("gemini-2.5-pro");
@@ -184,6 +192,10 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
         if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
         if (s.provider) setProvider(s.provider);
+        if (typeof s.codexModelFast === "string") setCodexModelFast(s.codexModelFast);
+        if (typeof s.codexModelSmart === "string") setCodexModelSmart(s.codexModelSmart);
+        if (typeof s.codexEffortFast === "string") setCodexEffortFast(s.codexEffortFast);
+        if (typeof s.codexEffortSmart === "string") setCodexEffortSmart(s.codexEffortSmart);
         if (typeof s.geminiApiKey === "string") setGeminiApiKey(s.geminiApiKey);
         if (typeof s.geminiModelFast === "string") setGeminiModelFast(s.geminiModelFast);
         if (typeof s.geminiModelSmart === "string") setGeminiModelSmart(s.geminiModelSmart);
@@ -291,18 +303,18 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
     });
   }, [piUrl, piApiType, piModelFast, piModelSmart, persist]);
 
-  const textStateRef = useRef({ piUrl, piApiKey, piModelFast, piModelSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort });
+  const textStateRef = useRef({ piUrl, piApiKey, piModelFast, piModelSmart, codexModelFast, codexModelSmart, codexEffortFast, codexEffortSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort });
   useEffect(() => {
-    textStateRef.current = { piUrl, piApiKey, piModelFast, piModelSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort };
-  }, [piUrl, piApiKey, piModelFast, piModelSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort]);
+    textStateRef.current = { piUrl, piApiKey, piModelFast, piModelSmart, codexModelFast, codexModelSmart, codexEffortFast, codexEffortSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort };
+  }, [piUrl, piApiKey, piModelFast, piModelSmart, codexModelFast, codexModelSmart, codexEffortFast, codexEffortSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
     const timer = setTimeout(() => {
-      persist({ piUrl, piApiKey, piModelFast, piModelSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort });
+      persist({ piUrl, piApiKey, piModelFast, piModelSmart, codexModelFast, codexModelSmart, codexEffortFast, codexEffortSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort });
     }, 500);
     return () => clearTimeout(timer);
-  }, [piUrl, piApiKey, piModelFast, piModelSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort, persist]);
+  }, [piUrl, piApiKey, piModelFast, piModelSmart, codexModelFast, codexModelSmart, codexEffortFast, codexEffortSmart, geminiApiKey, geminiModelFast, geminiModelSmart, claudeModelFast, claudeModelSmart, claudeEffort, persist]);
 
   useEffect(() => {
     return () => {
@@ -464,9 +476,80 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
 
       {provider === "codex" && (
         <div className="px-3 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--surface-sunken)] space-y-3">
-          <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
-            Codex manages its own authentication via browser login and selects the best model for your task automatically.
-          </p>
+          <div>
+            <label className="block text-[11.5px] font-medium text-[var(--ink-900)] mb-1">
+              Codex Authentication
+            </label>
+            <p className="text-[11px] leading-relaxed text-[var(--ink-500)]">
+              Codex manages its own authentication via browser login.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <EditableModelSelect
+              label="Fast Model"
+              value={codexModelFast}
+              onChange={setCodexModelFast}
+              options={[
+                { value: "auto", label: "Auto (Let server decide)" },
+                { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+                { value: "gpt-4o", label: "gpt-4o" },
+                { value: "o1-mini", label: "o1-mini" },
+                { value: "gpt-4", label: "gpt-4" },
+                { value: "gpt-5.5", label: "gpt-5.5" }
+              ]}
+            />
+            <EditableModelSelect
+              label="Smart Model"
+              value={codexModelSmart}
+              onChange={setCodexModelSmart}
+              options={[
+                { value: "auto", label: "Auto (Let server decide)" },
+                { value: "gpt-5.5", label: "gpt-5.5" },
+                { value: "o1-preview", label: "o1-preview" },
+                { value: "o1-mini", label: "o1-mini" },
+                { value: "gpt-4o", label: "gpt-4o" },
+                { value: "gpt-4", label: "gpt-4" }
+              ]}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--ink-900)] mb-1">
+                Fast Thinking Effort
+              </label>
+              <select
+                value={codexEffortFast}
+                onChange={(e) => setCodexEffortFast(e.target.value)}
+                className="w-full h-[26px] bg-[var(--surface-default)] border border-[var(--border-subtle)] 
+                         rounded text-[11.5px] px-2 text-[var(--ink-900)] outline-none 
+                         focus:border-[var(--brand-500)] focus:ring-1 focus:ring-[var(--brand-500)]/20 transition-all"
+              >
+                <option value="minimal">None (Fastest)</option>
+                <option value="low">Low (Default for fast)</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="xhigh">X-High</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--ink-900)] mb-1">
+                Smart Thinking Effort
+              </label>
+              <select
+                value={codexEffortSmart}
+                onChange={(e) => setCodexEffortSmart(e.target.value)}
+                className="w-full h-[26px] bg-[var(--surface-default)] border border-[var(--border-subtle)] 
+                         rounded text-[11.5px] px-2 text-[var(--ink-900)] outline-none 
+                         focus:border-[var(--brand-500)] focus:ring-1 focus:ring-[var(--brand-500)]/20 transition-all"
+              >
+                <option value="minimal">None (Fastest)</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High (Default for smart)</option>
+                <option value="xhigh">X-High</option>
+              </select>
+            </div>
+          </div>
         </div>
       )}
 

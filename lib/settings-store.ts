@@ -22,6 +22,10 @@ export type AppSettings = {
   autoGenerate: boolean;
   maxRetries: number;
   provider: "codex" | "gemini" | "claude" | "pi";
+  codexModelFast?: string;
+  codexModelSmart?: string;
+  codexEffortFast?: string;
+  codexEffortSmart?: string;
   geminiApiKey?: string;
   geminiModelFast?: string;
   geminiModelSmart?: string;
@@ -58,6 +62,10 @@ function defaultsFromEnv(): AppSettings {
     autoGenerate: AUTO_GENERATE_VIZ,
     maxRetries: MAX_VIZ_GEN_RETRIES,
     provider: "codex",
+    codexModelFast: "gpt-5.5",
+    codexModelSmart: "gpt-5.5",
+    codexEffortFast: "low",
+    codexEffortSmart: "high",
     geminiModelFast: "gemini-flash-lite-latest",
     geminiModelSmart: "gemini-pro-latest",
     claudeModelFast: "claude-3-7-sonnet-20250219",
@@ -113,6 +121,10 @@ export function loadSettings(): AppSettings {
             ? Math.min(10, Math.floor(parsed.maxRetries))
             : env.maxRetries,
         provider: loadedProvider,
+        codexModelFast: typeof parsed.codexModelFast === "string" ? parsed.codexModelFast : env.codexModelFast,
+        codexModelSmart: typeof parsed.codexModelSmart === "string" ? parsed.codexModelSmart : env.codexModelSmart,
+        codexEffortFast: typeof parsed.codexEffortFast === "string" ? parsed.codexEffortFast : env.codexEffortFast,
+        codexEffortSmart: typeof parsed.codexEffortSmart === "string" ? parsed.codexEffortSmart : env.codexEffortSmart,
         geminiApiKey: typeof parsed.geminiApiKey === "string" ? parsed.geminiApiKey : env.geminiApiKey,
         geminiModelFast: typeof parsed.geminiModelFast === "string" ? parsed.geminiModelFast : env.geminiModelFast,
         geminiModelSmart: typeof parsed.geminiModelSmart === "string" ? parsed.geminiModelSmart : env.geminiModelSmart,
@@ -146,6 +158,10 @@ export function saveSettings(s: AppSettings): void {
     autoGenerate: !!s.autoGenerate,
     maxRetries: Math.min(10, Math.max(0, Math.floor(s.maxRetries))),
     provider: s.provider,
+    codexModelFast: s.codexModelFast,
+    codexModelSmart: s.codexModelSmart,
+    codexEffortFast: s.codexEffortFast,
+    codexEffortSmart: s.codexEffortSmart,
     geminiApiKey: s.geminiApiKey,
     geminiModelFast: s.geminiModelFast,
     geminiModelSmart: s.geminiModelSmart,

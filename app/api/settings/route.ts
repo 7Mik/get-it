@@ -29,6 +29,10 @@ export async function POST(req: Request) {
       ["codex", "gemini", "claude", "pi"].includes(b.provider as string)
         ? b.provider!
         : current.provider,
+    codexModelFast: typeof b.codexModelFast === "string" ? b.codexModelFast : current.codexModelFast,
+    codexModelSmart: typeof b.codexModelSmart === "string" ? b.codexModelSmart : current.codexModelSmart,
+    codexEffortFast: typeof b.codexEffortFast === "string" ? b.codexEffortFast : current.codexEffortFast,
+    codexEffortSmart: typeof b.codexEffortSmart === "string" ? b.codexEffortSmart : current.codexEffortSmart,
     geminiApiKey: typeof b.geminiApiKey === "string" ? b.geminiApiKey : current.geminiApiKey,
     geminiModelFast: typeof b.geminiModelFast === "string" ? b.geminiModelFast : current.geminiModelFast,
     geminiModelSmart: typeof b.geminiModelSmart === "string" ? b.geminiModelSmart : current.geminiModelSmart,

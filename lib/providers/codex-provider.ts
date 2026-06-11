@@ -15,6 +15,7 @@ import type {
   RunJsonResult,
   RunJsonInThreadResult,
 } from "../provider-types";
+import { loadSettings } from "../settings-store";
 
 let _codex: Codex | null = null;
 
@@ -33,12 +34,25 @@ function getCodex(): Codex {
 }
 
 function threadOptions(opts: RunOptions = {}): ThreadOptions {
+  const settings = loadSettings();
+  const reasoningCategory = opts.reasoning ?? "low";
+  
+  let modelToUse = reasoningCategory === "low" ? settings.codexModelFast : settings.codexModelSmart;
+  if (modelToUse === "auto") {
+    modelToUse = undefined;
+  }
+
+  const effortToUse = reasoningCategory === "low" 
+    ? (settings.codexEffortFast || "low") 
+    : (settings.codexEffortSmart || "high");
+
   return {
+    model: modelToUse,
     sandboxMode: "read-only",
     approvalPolicy: "never",
     skipGitRepoCheck: true,
     workingDirectory: CODEX_SCRATCH_DIR,
-    modelReasoningEffort: opts.reasoning ?? "low",
+    modelReasoningEffort: effortToUse as any,
     webSearchEnabled: opts.webSearch ?? false,
   };
 }
