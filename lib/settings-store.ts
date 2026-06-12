@@ -113,7 +113,10 @@ export function loadSettings(): AppSettings {
       }
 
       return {
-        autoGenerate: false, // Enforced always off
+        autoGenerate:
+          typeof parsed.autoGenerate === "boolean"
+            ? parsed.autoGenerate
+            : env.autoGenerate,
         maxRetries:
           typeof parsed.maxRetries === "number" && parsed.maxRetries >= 0
             ? Math.min(10, Math.floor(parsed.maxRetries))

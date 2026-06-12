@@ -448,7 +448,7 @@ function ensureIpcHandlers() {
     if (override && override !== "codex") {
       try {
         const settingsPath = path.join(app.getPath("userData"), "settings.json");
-        let settings = { v: 2, autoGenerate: true, maxRetries: 3 };
+        let settings = { v: 2, autoGenerate: false, maxRetries: 3 };
         if (fs.existsSync(settingsPath)) {
           try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
         }
