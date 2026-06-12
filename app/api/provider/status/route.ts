@@ -125,6 +125,27 @@ export async function GET() {
     return NextResponse.json(status);
   }
 
+  if (provider === "pi") {
+    const status: ProviderStatus = {
+      provider,
+      label,
+      docsUrl,
+      installed: true,
+      authenticated: !!settings.piUrl,
+      version: null,
+      account: !!settings.piUrl ? {
+        email: "BYOK Connection",
+        name: "Pi Backend",
+        planType: "Proxy",
+        organizations: [],
+        subscriptionActiveUntil: null,
+        authMode: "URL/Key",
+      } : null,
+      rateLimits: null,
+    };
+    return NextResponse.json(status);
+  }
+
   // Gemini / Claude — stub status
   const binaryName = provider === "gemini" ? "gemini" : "claude";
   const binaryPath = whichBinary(binaryName);

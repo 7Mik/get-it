@@ -75,9 +75,11 @@ export type CodexHealth = {
   lastOkAt: number | null;
 };
 
+type HealthMap = Record<ProviderName, CodexHealth>;
+
 declare global {
   // eslint-disable-next-line no-var
-  var __getitCodexHealth: CodexHealth | undefined;
+  var __getitHealthState: HealthMap | undefined;
 }
 
 const _initialHealth: CodexHealth = {
@@ -90,11 +92,19 @@ const _initialHealth: CodexHealth = {
   lastOkAt: null,
 };
 
-const health: CodexHealth =
-  globalThis.__getitCodexHealth ??
-  (globalThis.__getitCodexHealth = { ..._initialHealth });
+const healthMap: HealthMap = globalThis.__getitHealthState ?? (globalThis.__getitHealthState = {
+  codex: { ..._initialHealth },
+  gemini: { ..._initialHealth },
+  claude: { ..._initialHealth },
+  pi: { ..._initialHealth },
+});
+
+function getHealth(providerName?: ProviderName): CodexHealth {
+  return healthMap[providerName ?? getActiveProviderName()];
+}
 
 export function getCodexHealth(): CodexHealth {
+  const health = getHealth();
   if (
     health.kind === "rate_limit" &&
     health.retryAt != null &&
@@ -105,7 +115,8 @@ export function getCodexHealth(): CodexHealth {
   return { ...health };
 }
 
-function markOk() {
+function markOk(providerName: ProviderName) {
+  const health = getHealth(providerName);
   if (!health.ok) {
     Object.assign(health, _initialHealth, { serial: health.serial + 1 });
   }
@@ -113,7 +124,8 @@ function markOk() {
   health.ok = true;
 }
 
-function markError(err: CodexError) {
+function markError(providerName: ProviderName, err: CodexError) {
+  const health = getHealth(providerName);
   health.ok = false;
   health.kind = err.kind;
   health.message = err.message;
@@ -122,7 +134,8 @@ function markError(err: CodexError) {
   health.serial += 1;
 }
 
-function preflightHealth(): CodexError | null {
+function preflightHealth(providerName: ProviderName): CodexError | null {
+  const health = getHealth(providerName);
   if (
     health.kind === "rate_limit" &&
     health.retryAt != null &&
@@ -148,17 +161,19 @@ export async function runJson<T>(
   outputSchema: object,
   opts: RunOptions = {},
 ): Promise<{ data: T; usage: unknown }> {
-  const preflight = preflightHealth();
+  const providerName = getActiveProviderName();
+  const preflight = preflightHealth(providerName);
   if (preflight) throw preflight;
 
   try {
-    const result = await activeProvider().runJson<T>(prompt, outputSchema, opts);
-    markOk();
+    const provider = providers[providerName] ?? providers.codex;
+    const result = await provider.runJson<T>(prompt, outputSchema, opts);
+    markOk(providerName);
     return result;
   } catch (err) {
     const classified = classifyCodexError(err);
     if (classified.kind !== "generic") {
-      markError(classified);
+      markError(providerName, classified);
     }
     throw classified;
   }
@@ -180,17 +195,19 @@ export async function runJsonInThread<T>(args: {
   resume?: { threadId: string; input: string };
   start?: { input: string };
 }): Promise<{ data: T; usage: unknown; threadId: string | null }> {
-  const preflight = preflightHealth();
+  const providerName = getActiveProviderName();
+  const preflight = preflightHealth(providerName);
   if (preflight) throw preflight;
 
   try {
-    const result = await activeProvider().runJsonInThread<T>(args);
-    markOk();
+    const provider = providers[providerName] ?? providers.codex;
+    const result = await provider.runJsonInThread<T>(args);
+    markOk(providerName);
     return result;
   } catch (err) {
     const classified = classifyCodexError(err);
     if (classified.kind !== "generic") {
-      markError(classified);
+      markError(providerName, classified);
     }
     throw classified;
   }

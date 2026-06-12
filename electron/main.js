@@ -206,6 +206,16 @@ async function startEmbeddedServer() {
   if (savedProvider === "codex") {
     const codexInfo = resolveCodexBinary();
     if (codexInfo) env.CODEX_BINARY_PATH = codexInfo.path;
+  } else {
+    // Both Claude and Gemini paths are resolved using the same helper from setup.js
+    const { resolveBundledBinary } = require("./setup");
+    if (savedProvider === "claude") {
+      const claudePath = resolveBundledBinary("claude");
+      if (claudePath) env.CLAUDE_BINARY_PATH = claudePath;
+    } else if (savedProvider === "gemini") {
+      const geminiPath = resolveBundledBinary("gemini");
+      if (geminiPath) env.GEMINI_BINARY_PATH = geminiPath;
+    }
   }
 
   const nodeBin = process.execPath; // Electron's own node — works for ES modules

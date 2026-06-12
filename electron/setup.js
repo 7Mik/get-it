@@ -448,7 +448,7 @@ function ensureIpcHandlers() {
     if (override && override !== "codex") {
       try {
         const settingsPath = path.join(app.getPath("userData"), "settings.json");
-        let settings = { v: 2, autoGenerate: true, maxRetries: 3 };
+        let settings = { v: 2, autoGenerate: false, maxRetries: 3 };
         if (fs.existsSync(settingsPath)) {
           try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
         }
@@ -680,7 +680,7 @@ function readSavedProvider() {
     const settingsPath = path.join(app.getPath("userData"), "settings.json");
     if (!fs.existsSync(settingsPath)) return "codex";
     const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    if (raw.provider === "gemini" || raw.provider === "claude") return raw.provider;
+    if (raw.provider === "gemini" || raw.provider === "claude" || raw.provider === "pi") return raw.provider;
     return "codex";
   } catch {
     return "codex";
@@ -788,6 +788,9 @@ async function ensureProviderReady() {
 
   const binPath = resolveBundledBinary(provider);
 
+  // BYOK does not require a binary.
+  if (provider === "pi") return true;
+
   if (!binPath) {
     const label = PROVIDER_LABELS[provider];
     const { dialog: d } = require("electron");
@@ -853,4 +856,5 @@ module.exports = {
   refreshCodexStatus,
   onCodexStatusChange,
   readSavedProvider,
+  resolveBundledBinary,
 };

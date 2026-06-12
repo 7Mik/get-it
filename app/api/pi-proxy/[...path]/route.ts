@@ -110,6 +110,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     base.pathname = "/" + mergedSegments.join("/");
     
     // Keep any incoming query parameters
+    const incomingUrl = new URL(req.url);
+    incomingUrl.searchParams.forEach((value, key) => {
+      base.searchParams.append(key, value);
+    });
     const targetUrl = base.toString();
 
     const headers = new Headers();

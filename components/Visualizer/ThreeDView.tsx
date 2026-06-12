@@ -165,14 +165,12 @@ export default function ThreeDView({ spec, onRuntimeError }: Props) {
       if (reportedRef.current) return;
       let renderable = 0;
       scene.traverse((obj) => {
-        const t = obj.type;
+        const o = obj as any;
         if (
-          t === "Mesh" ||
-          t === "Line" ||
-          t === "LineSegments" ||
-          t === "LineLoop" ||
-          t === "Points" ||
-          t === "Sprite"
+          o.isMesh ||
+          o.isLine ||
+          o.isPoints ||
+          o.isSprite
         ) {
           renderable++;
         }

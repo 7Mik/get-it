@@ -95,7 +95,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
         if (cancelled) return;
         if (typeof s.autoGenerate === "boolean") setAutoGenerate(s.autoGenerate);
         if (typeof s.maxRetries === "number") setMaxRetries(s.maxRetries);
-        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude")
+        if (s.provider === "codex" || s.provider === "gemini" || s.provider === "claude" || s.provider === "pi")
           setProvider(s.provider);
       })
       .catch(() => {});
@@ -112,7 +112,7 @@ export default function ViewerClient({ docId }: { docId: string }) {
       if (!detail) return;
       if (typeof detail.autoGenerate === "boolean") setAutoGenerate(detail.autoGenerate);
       if (typeof detail.maxRetries === "number") setMaxRetries(detail.maxRetries);
-      if (detail.provider === "codex" || detail.provider === "gemini" || detail.provider === "claude")
+      if (detail.provider === "codex" || detail.provider === "gemini" || detail.provider === "claude" || detail.provider === "pi")
         setProvider(detail.provider);
     };
     window.addEventListener(SETTINGS_EVENT, onChange);

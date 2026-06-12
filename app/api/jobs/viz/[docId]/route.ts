@@ -36,7 +36,7 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
-  if (body.retryFailed) {
+  if (body.retryFailed === true) {
     const requeued = requestRetryFailedViz(docId);
     return NextResponse.json({
       ok: true,

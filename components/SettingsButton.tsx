@@ -68,7 +68,14 @@ function EditableModelSelect({
         </label>
         <button 
           type="button" 
-          onClick={() => setIsEditing(!showEdit)}
+          onClick={() => {
+            if (isCustom) {
+              onChange(options[0]?.value || "");
+              setIsEditing(false);
+            } else {
+              setIsEditing(!showEdit);
+            }
+          }}
           className="text-[var(--ink-500)] hover:text-[var(--ink-900)]"
           title={showEdit ? "Select from list" : "Enter custom model"}
         >
@@ -209,9 +216,11 @@ function SettingsPanel({ refreshKey }: { refreshKey: string }) {
         if (typeof s.piProvider === "string") setPiProvider(s.piProvider);
         if (typeof s.piApiType === "string") setPiApiType(s.piApiType);
         
-        setTimeout(() => {
-          if (!cancelled) hydratedRef.current = true;
-        }, 100);
+        if (!cancelled) {
+          setTimeout(() => {
+            if (!cancelled) hydratedRef.current = true;
+          }, 10);
+        }
       })
       .catch(() => {
         hydratedRef.current = true;
